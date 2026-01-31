@@ -1,0 +1,133 @@
+<mxfile host="app.diagrams.net" modified="2026-01-31T00:00:00.000Z" agent="Claude" version="22.0.0">
+  <diagram name="MVCC Visibility" id="mvcc-visibility">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Title -->
+        <mxCell id="title" value="PostgreSQL MVCC (Multi-Version Concurrency Control) 가시성" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=18;" vertex="1" parent="1">
+          <mxGeometry x="250" y="20" width="650" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- Timeline -->
+        <mxCell id="timeline_label" value="시간 흐름 →" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="80" y="70" width="120" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="timeline" value="" style="shape=line;strokeWidth=3;strokeColor=#000000;direction=east;" vertex="1" parent="1">
+          <mxGeometry x="80" y="100" width="1000" height="10" as="geometry" />
+        </mxCell>
+
+        <!-- Transactions on timeline -->
+        <mxCell id="t1_start" value="T1 BEGIN&#xa;XID=100" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="120" y="60" width="80" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="t1_marker" value="" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="153" y="98" width="14" height="14" as="geometry" />
+        </mxCell>
+
+        <mxCell id="t2_start" value="T2 BEGIN&#xa;XID=101" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="280" y="60" width="80" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="t2_marker" value="" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="313" y="98" width="14" height="14" as="geometry" />
+        </mxCell>
+
+        <mxCell id="t1_commit" value="T1 COMMIT" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="520" y="60" width="80" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="t1_commit_marker" value="" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="553" y="98" width="14" height="14" as="geometry" />
+        </mxCell>
+
+        <mxCell id="t3_start" value="T3 BEGIN&#xa;XID=102" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="680" y="60" width="80" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="t3_marker" value="" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="713" y="98" width="14" height="14" as="geometry" />
+        </mxCell>
+
+        <mxCell id="t2_commit" value="T2 COMMIT" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="840" y="60" width="80" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="t2_commit_marker" value="" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="873" y="98" width="14" height="14" as="geometry" />
+        </mxCell>
+
+        <!-- INSERT Example -->
+        <mxCell id="insert_box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;opacity=30;" vertex="1" parent="1">
+          <mxGeometry x="80" y="150" width="400" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="insert_title" value="INSERT 작업 (T1, XID=100)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="90" y="160" width="250" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="insert_sql" value="INSERT INTO accounts (id, name, balance)&#xa;VALUES (1, 'Alice', 1000);" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11;fontFamily=Courier New;" vertex="1" parent="1">
+          <mxGeometry x="90" y="185" width="380" height="30" as="geometry" />
+        </mxCell>
+
+        <mxCell id="insert_tuple" value="Tuple Version 1:&#xa;┌─────────────────────────────────┐&#xa;│ xmin = 100  (T1이 생성)        │&#xa;│ xmax = 0    (삭제 안됨)        │&#xa;│ ctid = (0,1)                    │&#xa;│ data: id=1, name=Alice, bal=1000│&#xa;└─────────────────────────────────┘" style="text;html=1;strokeColor=#6c8ebf;fillColor=#dae8fc;align=left;verticalAlign=top;whiteSpace=wrap;rounded=1;fontSize=10;fontFamily=Courier New;spacing=5;" vertex="1" parent="1">
+          <mxGeometry x="90" y="220" width="380" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- UPDATE Example -->
+        <mxCell id="update_box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;opacity=30;" vertex="1" parent="1">
+          <mxGeometry x="80" y="290" width="400" height="180" as="geometry" />
+        </mxCell>
+        <mxCell id="update_title" value="UPDATE 작업 (T2, XID=101)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="90" y="300" width="250" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="update_sql" value="UPDATE accounts SET balance = 1500&#xa;WHERE id = 1;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11;fontFamily=Courier New;" vertex="1" parent="1">
+          <mxGeometry x="90" y="325" width="380" height="30" as="geometry" />
+        </mxCell>
+
+        <mxCell id="update_old" value="Old Tuple (삭제 표시):&#xa;┌─────────────────────────────────┐&#xa;│ xmin = 100                      │&#xa;│ xmax = 101  (T2가 삭제 표시)   │&#xa;│ data: id=1, name=Alice, bal=1000│&#xa;└─────────────────────────────────┘" style="text;html=1;strokeColor=#82b366;fillColor=#d5e8d4;align=left;verticalAlign=top;whiteSpace=wrap;rounded=1;fontSize=10;fontFamily=Courier New;spacing=5;" vertex="1" parent="1">
+          <mxGeometry x="90" y="360" width="380" height="40" as="geometry" />
+        </mxCell>
+
+        <mxCell id="update_new" value="New Tuple (새 버전):&#xa;┌─────────────────────────────────┐&#xa;│ xmin = 101  (T2가 생성)        │&#xa;│ xmax = 0                        │&#xa;│ ctid = (0,2)                    │&#xa;│ data: id=1, name=Alice, bal=1500│&#xa;└─────────────────────────────────┘" style="text;html=1;strokeColor=#82b366;fillColor=#d5e8d4;align=left;verticalAlign=top;whiteSpace=wrap;rounded=1;fontSize=10;fontFamily=Courier New;spacing=5;" vertex="1" parent="1">
+          <mxGeometry x="90" y="410" width="380" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- DELETE Example -->
+        <mxCell id="delete_box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=2;opacity=30;" vertex="1" parent="1">
+          <mxGeometry x="80" y="490" width="400" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="delete_title" value="DELETE 작업 (T3, XID=102)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="90" y="500" width="250" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="delete_sql" value="DELETE FROM accounts WHERE id = 1;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11;fontFamily=Courier New;" vertex="1" parent="1">
+          <mxGeometry x="90" y="525" width="380" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="delete_tuple" value="Deleted Tuple:&#xa;┌─────────────────────────────────┐&#xa;│ xmin = 101                      │&#xa;│ xmax = 102  (T3가 삭제)        │&#xa;│ data: id=1, name=Alice, bal=1500│&#xa;│ → VACUUM으로 제거 대상          │&#xa;└─────────────────────────────────┘" style="text;html=1;strokeColor=#d6b656;fillColor=#fff2cc;align=left;verticalAlign=top;whiteSpace=wrap;rounded=1;fontSize=10;fontFamily=Courier New;spacing=5;" vertex="1" parent="1">
+          <mxGeometry x="90" y="550" width="380" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Visibility Rules -->
+        <mxCell id="visibility_box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="520" y="150" width="540" height="300" as="geometry" />
+        </mxCell>
+        <mxCell id="visibility_title" value="가시성 규칙 (Visibility Rules)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=16;" vertex="1" parent="1">
+          <mxGeometry x="640" y="160" width="300" height="25" as="geometry" />
+        </mxCell>
+
+        <mxCell id="visibility_rules" value="각 트랜잭션은 스냅샷(Snapshot)을 가짐:&#xa;• xmin: 활성 트랜잭션 목록&#xa;• xmax: 최대 완료된 XID&#xa;&#xa;Tuple이 가시적이려면:&#xa;&#xa;1. INSERT된 Tuple (xmin 체크):&#xa;   ✓ xmin이 커밋되었고&#xa;   ✓ xmin &lt; 내 스냅샷의 xmax&#xa;   ✓ xmin이 내 활성 트랜잭션 목록에 없음&#xa;&#xa;2. DELETE/UPDATE로 xmax 설정된 경우:&#xa;   ✓ xmax가 커밋되지 않았거나&#xa;   ✓ xmax ≥ 내 스냅샷의 xmax&#xa;   ✓ xmax가 내 활성 트랜잭션 목록에 있음&#xa;&#xa;예시: T2 스냅샷 (XID=101, 시작 시각에 T1 활성)&#xa;→ T1이 INSERT한 tuple (xmin=100) 보이는가?&#xa;   xmin=100 &lt; 101이고, T1이 커밋됨 → 보임!&#xa;→ T3이 INSERT한 tuple (xmin=102) 보이는가?&#xa;   xmin=102 ≥ 101 → 안 보임!" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=11;spacing=5;" vertex="1" parent="1">
+          <mxGeometry x="530" y="195" width="520" height="245" as="geometry" />
+        </mxCell>
+
+        <!-- Isolation Levels -->
+        <mxCell id="isolation_box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="520" y="470" width="540" height="140" as="geometry" />
+        </mxCell>
+        <mxCell id="isolation_title" value="격리 수준 (Isolation Levels) 비교" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=16;" vertex="1" parent="1">
+          <mxGeometry x="620" y="480" width="340" height="25" as="geometry" />
+        </mxCell>
+
+        <mxCell id="isolation_table" value="┌──────────────────┬─────────────┬──────────────┬─────────────┐&#xa;│ Isolation Level  │ Dirty Read  │ Non-repeat   │ Phantom     │&#xa;│                  │             │ Read         │ Read        │&#xa;├──────────────────┼─────────────┼──────────────┼─────────────┤&#xa;│ Read Uncommitted │ 가능        │ 가능         │ 가능        │&#xa;│ (PG는 미지원)    │             │              │             │&#xa;├──────────────────┼─────────────┼──────────────┼─────────────┤&#xa;│ Read Committed   │ 불가능      │ 가능         │ 가능        │&#xa;│ (PG 기본값)      │             │              │             │&#xa;├──────────────────┼─────────────┼──────────────┼─────────────┤&#xa;│ Repeatable Read  │ 불가능      │ 불가능       │ 불가능*     │&#xa;│                  │             │              │ (PG는 차단) │&#xa;├──────────────────┼─────────────┼──────────────┼─────────────┤&#xa;│ Serializable     │ 불가능      │ 불가능       │ 불가능      │&#xa;│                  │             │              │             │&#xa;└──────────────────┴─────────────┴──────────────┴─────────────┘" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=9;fontFamily=Courier New;spacing=3;" vertex="1" parent="1">
+          <mxGeometry x="530" y="515" width="520" height="85" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

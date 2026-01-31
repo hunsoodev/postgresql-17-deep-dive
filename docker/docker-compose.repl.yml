@@ -1,0 +1,68 @@
+version: "3.9"
+
+# Primary + Replica 복제 실습용 구성
+# 사용법: docker compose -f docker-compose.repl.yml up -d
+
+services:
+  primary:
+    image: postgres:17
+    container_name: pg17-primary
+    environment:
+      POSTGRES_USER: labuser
+      POSTGRES_PASSWORD: labpass
+      POSTGRES_DB: ecommerce
+      POSTGRES_HOST_AUTH_METHOD: md5
+      POSTGRES_INITDB_ARGS: "--auth-host=md5"
+    ports:
+      - "5432:5432"
+    volumes:
+      - primary-data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/01-init.sql
+      - wal-archive:/var/lib/postgresql/wal-archive
+    command: >
+      postgres
+        -c wal_level=replica
+        -c max_wal_senders=3
+        -c wal_keep_size=256MB
+        -c hot_standby=on
+        -c archive_mode=on
+        -c archive_command='cp %p /var/lib/postgresql/wal-archive/%f'
+        -c listen_addresses='*'
+        -c shared_buffers=128MB
+        -c work_mem=4MB
+        -c log_statement=all
+    shm_size: "256m"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U labuser -d ecommerce"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  replica:
+    image: postgres:17
+    container_name: pg17-replica
+    environment:
+      PGUSER: labuser
+      PGPASSWORD: labpass
+    ports:
+      - "5433:5432"
+    volumes:
+      - replica-data:/var/lib/postgresql/data
+    depends_on:
+      primary:
+        condition: service_healthy
+    entrypoint: >
+      bash -c "
+        # 기존 데이터 제거 후 primary에서 베이스 백업
+        rm -rf /var/lib/postgresql/data/*
+        pg_basebackup -h primary -U labuser -D /var/lib/postgresql/data -Fp -Xs -P -R
+        # standby.signal은 -R 옵션이 자동 생성
+        chmod 700 /var/lib/postgresql/data
+        exec postgres -c hot_standby=on -c shared_buffers=128MB
+      "
+    shm_size: "256m"
+
+volumes:
+  primary-data:
+  replica-data:
+  wal-archive:

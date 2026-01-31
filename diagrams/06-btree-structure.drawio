@@ -1,0 +1,243 @@
+<mxfile host="app.diagrams.net" modified="2026-01-31T00:00:00.000Z" agent="Claude" version="22.0.0">
+  <diagram name="B-tree Structure" id="btree-structure">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Title -->
+        <mxCell id="title" value="PostgreSQL B-tree 인덱스 구조" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=18;" vertex="1" parent="1">
+          <mxGeometry x="400" y="20" width="400" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- Root Node -->
+        <mxCell id="root" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=3;" vertex="1" parent="1">
+          <mxGeometry x="450" y="80" width="300" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="root_label" value="Root Node (Meta Page)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="500" y="85" width="200" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="root_keys" value="[ 30 | 60 | 90 ]" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontFamily=Courier New;fontSize=14;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="500" y="110" width="200" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- Internal Nodes Level 1 -->
+        <mxCell id="internal1_1" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="120" y="200" width="180" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="internal1_1_keys" value="[ 10 | 20 ]" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontFamily=Courier New;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="130" y="215" width="160" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="internal1_2" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="340" y="200" width="180" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="internal1_2_keys" value="[ 40 | 50 ]" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontFamily=Courier New;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="350" y="215" width="160" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="internal1_3" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="560" y="200" width="180" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="internal1_3_keys" value="[ 70 | 80 ]" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontFamily=Courier New;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="570" y="215" width="160" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="internal1_4" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="780" y="200" width="180" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="internal1_4_keys" value="[ 95 | 100 ]" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontFamily=Courier New;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="790" y="215" width="160" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- Arrows from Root to Internal -->
+        <mxCell id="arrow_r_i1" value="&lt;30" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#d6b656;fontSize=10;" edge="1" parent="1" source="root" target="internal1_1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow_r_i2" value="30-60" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#d6b656;fontSize=10;" edge="1" parent="1" source="root" target="internal1_2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow_r_i3" value="60-90" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#d6b656;fontSize=10;" edge="1" parent="1" source="root" target="internal1_3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow_r_i4" value="≥90" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#d6b656;fontSize=10;" edge="1" parent="1" source="root" target="internal1_4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Leaf Nodes -->
+        <mxCell id="leaf1" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="40" y="320" width="100" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="leaf1_content" value="5 → (0,1)&#xa;8 → (0,5)&#xa;10 → (1,2)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontFamily=Courier New;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="45" y="330" width="90" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="leaf2" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="160" y="320" width="100" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="leaf2_content" value="12 → (1,8)&#xa;15 → (2,1)&#xa;20 → (2,9)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontFamily=Courier New;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="165" y="330" width="90" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="leaf3" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="280" y="320" width="100" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="leaf3_content" value="25 → (3,2)&#xa;28 → (3,7)&#xa;30 → (4,1)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontFamily=Courier New;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="285" y="330" width="90" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="leaf4" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="400" y="320" width="100" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="leaf4_content" value="35 → (4,8)&#xa;38 → (5,3)&#xa;40 → (5,9)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontFamily=Courier New;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="405" y="330" width="90" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="leaf5" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="520" y="320" width="100" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="leaf5_content" value="60 → (8,5)&#xa;65 → (9,1)&#xa;70 → (9,8)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontFamily=Courier New;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="525" y="330" width="90" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="leaf6" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="640" y="320" width="100" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="leaf6_content" value="75 → (10,2)&#xa;80 → (10,9)&#xa;85 → (11,4)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontFamily=Courier New;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="645" y="330" width="90" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="leaf7" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="760" y="320" width="100" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="leaf7_content" value="90 → (12,1)&#xa;92 → (12,6)&#xa;95 → (13,2)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontFamily=Courier New;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="765" y="330" width="90" height="50" as="geometry" />
+        </mxCell>
+
+        <mxCell id="leaf8" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="880" y="320" width="100" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="leaf8_content" value="98 → (13,9)&#xa;100 → (14,3)&#xa;105 → (15,1)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontFamily=Courier New;fontSize=9;" vertex="1" parent="1">
+          <mxGeometry x="885" y="330" width="90" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Arrows from Internal to Leaf -->
+        <mxCell id="arrow_i_l1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1;strokeColor=#6c8ebf;" edge="1" parent="1" source="internal1_1" target="leaf1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow_i_l2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1;strokeColor=#6c8ebf;" edge="1" parent="1" source="internal1_1" target="leaf2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow_i_l3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1;strokeColor=#6c8ebf;" edge="1" parent="1" source="internal1_1" target="leaf3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow_i_l4" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1;strokeColor=#6c8ebf;" edge="1" parent="1" source="internal1_2" target="leaf4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow_i_l5" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1;strokeColor=#6c8ebf;" edge="1" parent="1" source="internal1_3" target="leaf5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow_i_l6" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1;strokeColor=#6c8ebf;" edge="1" parent="1" source="internal1_3" target="leaf6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow_i_l7" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1;strokeColor=#6c8ebf;" edge="1" parent="1" source="internal1_4" target="leaf7">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow_i_l8" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=1;strokeColor=#6c8ebf;" edge="1" parent="1" source="internal1_4" target="leaf8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Leaf Node Chain -->
+        <mxCell id="chain1" value="→" style="edgeStyle=none;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#82b366;dashed=1;" edge="1" parent="1" source="leaf1" target="leaf2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="chain2" value="→" style="edgeStyle=none;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#82b366;dashed=1;" edge="1" parent="1" source="leaf2" target="leaf3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="chain3" value="→" style="edgeStyle=none;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#82b366;dashed=1;" edge="1" parent="1" source="leaf3" target="leaf4">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="chain4" value="→" style="edgeStyle=none;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#82b366;dashed=1;" edge="1" parent="1" source="leaf4" target="leaf5">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="chain5" value="→" style="edgeStyle=none;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#82b366;dashed=1;" edge="1" parent="1" source="leaf5" target="leaf6">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="chain6" value="→" style="edgeStyle=none;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#82b366;dashed=1;" edge="1" parent="1" source="leaf6" target="leaf7">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="chain7" value="→" style="edgeStyle=none;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#82b366;dashed=1;" edge="1" parent="1" source="leaf7" target="leaf8">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="chain_label" value="리프 노드 체인 (Range Scan용)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=11;fontColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="400" y="400" width="220" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- Page Split Example -->
+        <mxCell id="split_title" value="페이지 분할 (Page Split) 과정" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=16;" vertex="1" parent="1">
+          <mxGeometry x="80" y="440" width="900" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- Before Split -->
+        <mxCell id="before_split_box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="80" y="490" width="400" height="180" as="geometry" />
+        </mxCell>
+        <mxCell id="before_title" value="분할 전 (리프 노드 가득 참)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="130" y="500" width="300" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="before_leaf" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="110" y="540" width="340" height="110" as="geometry" />
+        </mxCell>
+        <mxCell id="before_content" value="Leaf Node (거의 가득 참):&#xa;20 → (2,9)&#xa;25 → (3,2)&#xa;28 → (3,7)&#xa;30 → (4,1)&#xa;&#xa;새 삽입: INSERT 27 → ???&#xa;→ 공간 부족! 페이지 분할 필요" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontFamily=Courier New;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="120" y="550" width="320" height="90" as="geometry" />
+        </mxCell>
+
+        <!-- After Split -->
+        <mxCell id="after_split_box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="540" y="490" width="440" height="180" as="geometry" />
+        </mxCell>
+        <mxCell id="after_title" value="분할 후 (2개 노드로 분리)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="610" y="500" width="300" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="after_leaf1" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="560" y="540" width="180" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="after_content1" value="New Leaf 1:&#xa;20 → (2,9)&#xa;25 → (3,2)&#xa;27 → (new)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontFamily=Courier New;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="570" y="550" width="160" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="after_leaf2" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="760" y="540" width="180" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="after_content2" value="New Leaf 2:&#xa;28 → (3,7)&#xa;30 → (4,1)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontFamily=Courier New;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="770" y="550" width="160" height="60" as="geometry" />
+        </mxCell>
+
+        <mxCell id="after_link" value="→" style="edgeStyle=none;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=2;strokeColor=#82b366;dashed=1;" edge="1" parent="1" source="after_leaf1" target="after_leaf2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <mxCell id="after_note" value="부모 노드에 28 추가&#xa;(새 구분 키)" style="text;html=1;strokeColor=#d79b00;fillColor=#ffe6cc;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=11;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="640" y="630" width="180" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- Range Scan Example -->
+        <mxCell id="range_title" value="범위 스캔 (Range Scan) 동작" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=16;" vertex="1" parent="1">
+          <mxGeometry x="80" y="690" width="900" height="30" as="geometry" />
+        </mxCell>
+
+        <mxCell id="range_box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="80" y="730" width="900" height="80" as="geometry" />
+        </mxCell>
+
+        <mxCell id="range_content" value="쿼리: SELECT * FROM users WHERE age BETWEEN 60 AND 85;&#xa;&#xa;1. Root에서 시작: 60은 60-90 범위 → Internal Node 3으로 이동&#xa;2. Internal Node 3: 60은 60보다 작지 않음 → Leaf 5로 이동&#xa;3. Leaf 5에서 60 찾음 → 리프 체인을 따라 순차 스캔: Leaf 5 → Leaf 6 (75, 80, 85 발견) → 85 이후 중단&#xa;4. 각 (page, offset) 포인터로 힙 튜플 접근하여 결과 반환&#xa;&#xa;→ B-tree는 정렬된 구조 덕분에 범위 검색이 효율적!" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=11;spacing=5;" vertex="1" parent="1">
+          <mxGeometry x="90" y="740" width="880" height="60" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

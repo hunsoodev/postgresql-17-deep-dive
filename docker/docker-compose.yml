@@ -1,0 +1,27 @@
+version: "3.9"
+
+services:
+  pg17:
+    image: postgres:17
+    container_name: pg17-lab
+    environment:
+      POSTGRES_USER: labuser
+      POSTGRES_PASSWORD: labpass
+      POSTGRES_DB: ecommerce
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./postgresql.conf:/etc/postgresql/postgresql.conf
+      - ./init.sql:/docker-entrypoint-initdb.d/01-init.sql
+      - wal-archive:/var/lib/postgresql/wal-archive
+    command: postgres -c config_file=/etc/postgresql/postgresql.conf
+    shm_size: "256m"
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+
+volumes:
+  pgdata:
+  wal-archive:

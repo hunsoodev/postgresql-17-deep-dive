@@ -1,0 +1,21 @@
+# Docker volumes
+docker/data/
+docker/wal-archive/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/
+
+# PostgreSQL
+*.log
+
+# Temporary files
+*.tmp
+*.bak

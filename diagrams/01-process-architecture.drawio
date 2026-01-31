@@ -1,0 +1,127 @@
+<mxfile host="app.diagrams.net" modified="2026-01-31T00:00:00.000Z" agent="Claude" version="22.0.0">
+  <diagram name="PostgreSQL Process Architecture" id="process-arch">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Client Connections -->
+        <mxCell id="client1" value="클라이언트 1" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="200" y="40" width="100" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="client2" value="클라이언트 2" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="340" y="40" width="100" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="client3" value="클라이언트 3" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;" vertex="1" parent="1">
+          <mxGeometry x="480" y="40" width="100" height="40" as="geometry" />
+        </mxCell>
+
+        <!-- Postmaster Process -->
+        <mxCell id="postmaster" value="postmaster&#xa;(메인 프로세스)&#xa;PostgreSQL 서버 시작&#xa;연결 수락 및 관리" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="310" y="140" width="180" height="80" as="geometry" />
+        </mxCell>
+
+        <!-- Arrows from clients to postmaster -->
+        <mxCell id="arrow1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.25;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="client1" target="postmaster">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="client2" target="postmaster">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="arrow3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.75;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="client3" target="postmaster">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Backend Processes -->
+        <mxCell id="backend1" value="백엔드 프로세스 1&#xa;(postgres)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="120" y="280" width="120" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="backend2" value="백엔드 프로세스 2&#xa;(postgres)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="260" y="280" width="120" height="50" as="geometry" />
+        </mxCell>
+        <mxCell id="backend3" value="백엔드 프로세스 3&#xa;(postgres)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="400" y="280" width="120" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Fork arrows -->
+        <mxCell id="fork1" value="fork()" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;strokeWidth=2;strokeColor=#82b366;" edge="1" parent="1" source="postmaster" target="backend1">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fork2" value="fork()" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;strokeWidth=2;strokeColor=#82b366;" edge="1" parent="1" source="postmaster" target="backend2">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="fork3" value="fork()" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;strokeWidth=2;strokeColor=#82b366;" edge="1" parent="1" source="postmaster" target="backend3">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Background Workers -->
+        <mxCell id="bgworkers_label" value="백그라운드 워커 프로세스" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="640" y="140" width="200" height="30" as="geometry" />
+        </mxCell>
+
+        <mxCell id="autovacuum_launcher" value="autovacuum launcher&#xa;자동 청소 시작" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="640" y="180" width="140" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="autovacuum_worker" value="autovacuum worker&#xa;테이블 청소 실행" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="800" y="180" width="140" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="checkpointer" value="checkpointer&#xa;체크포인트 실행" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="640" y="240" width="140" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="walwriter" value="WAL writer&#xa;WAL 버퍼 쓰기" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="800" y="240" width="140" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="bgwriter" value="background writer&#xa;더티 페이지 쓰기" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="640" y="300" width="140" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="stats" value="stats collector&#xa;통계 수집" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="800" y="300" width="140" height="45" as="geometry" />
+        </mxCell>
+        <mxCell id="logrep" value="logical replication&#xa;launcher&#xa;논리 복제 시작" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="720" y="360" width="140" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Shared Memory Block -->
+        <mxCell id="shm_block" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="100" y="420" width="620" height="240" as="geometry" />
+        </mxCell>
+        <mxCell id="shm_title" value="공유 메모리 (Shared Memory)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=16;" vertex="1" parent="1">
+          <mxGeometry x="280" y="430" width="260" height="30" as="geometry" />
+        </mxCell>
+
+        <mxCell id="shared_buffers" value="shared_buffers&#xa;데이터 페이지 캐시&#xa;(default: 128MB)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="120" y="470" width="160" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="wal_buffers" value="WAL buffers&#xa;WAL 레코드 버퍼&#xa;(default: 16MB)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="300" y="470" width="160" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="clog_buffers" value="CLOG buffers&#xa;트랜잭션 상태&#xa;커밋 로그" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="480" y="470" width="160" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="lock_table" value="Lock table&#xa;잠금 정보 관리" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="120" y="560" width="160" height="70" as="geometry" />
+        </mxCell>
+        <mxCell id="proc_array" value="Proc array&#xa;프로세스 정보&#xa;트랜잭션 스냅샷" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="300" y="560" width="160" height="70" as="geometry" />
+        </mxCell>
+
+        <!-- OS Kernel -->
+        <mxCell id="kernel" value="OS 커널 (Linux/Windows)&#xa;IPC: Semaphores, Signals, Shared Memory" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;fontStyle=1" vertex="1" parent="1">
+          <mxGeometry x="100" y="700" width="620" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- Arrows to shared memory -->
+        <mxCell id="shm_arrow1" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;strokeColor=#666666;" edge="1" parent="1" source="backend1" target="shm_block">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="shm_arrow2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;strokeColor=#666666;" edge="1" parent="1" source="backend2" target="shm_block">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="shm_arrow3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;dashed=1;strokeColor=#666666;" edge="1" parent="1" source="backend3" target="shm_block">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

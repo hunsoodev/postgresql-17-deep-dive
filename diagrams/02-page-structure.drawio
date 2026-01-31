@@ -1,0 +1,116 @@
+<mxfile host="app.diagrams.net" modified="2026-01-31T00:00:00.000Z" agent="Claude" version="22.0.0">
+  <diagram name="PostgreSQL Page Structure" id="page-struct">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Page Structure Title -->
+        <mxCell id="title" value="PostgreSQL 페이지 구조 (8KB = 8192 bytes)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=18;" vertex="1" parent="1">
+          <mxGeometry x="120" y="30" width="400" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- Page Container -->
+        <mxCell id="page_container" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=none;strokeColor=#000000;strokeWidth=3;" vertex="1" parent="1">
+          <mxGeometry x="120" y="80" width="400" height="600" as="geometry" />
+        </mxCell>
+
+        <!-- Page Header -->
+        <mxCell id="page_header" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="120" y="80" width="400" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="header_title" value="Page Header (24 bytes)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="220" y="85" width="200" height="20" as="geometry" />
+        </mxCell>
+
+        <mxCell id="pd_lsn" value="pd_lsn: LSN (8 bytes)&#xa;마지막 WAL 레코드 위치" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="130" y="110" width="180" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="pd_checksum" value="pd_checksum: (2 bytes)&#xa;페이지 체크섬" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="320" y="110" width="180" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="pd_flags" value="pd_flags: (2 bytes)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="130" y="140" width="120" height="15" as="geometry" />
+        </mxCell>
+        <mxCell id="pd_lower" value="pd_lower: free space 시작" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="260" y="140" width="180" height="15" as="geometry" />
+        </mxCell>
+        <mxCell id="pd_upper" value="pd_upper: free space 끝" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="130" y="155" width="150" height="15" as="geometry" />
+        </mxCell>
+        <mxCell id="pd_special" value="pd_special: special space 시작" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="290" y="155" width="200" height="15" as="geometry" />
+        </mxCell>
+
+        <!-- Line Pointers -->
+        <mxCell id="line_pointers" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="120" y="180" width="400" height="80" as="geometry" />
+        </mxCell>
+        <mxCell id="lp_title" value="Line Pointers (Item IDs)&#xa;아래로 성장 ↓" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="220" y="190" width="200" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="lp_detail" value="ItemId 1: (offset, length)&#xa;ItemId 2: (offset, length)&#xa;ItemId 3: (offset, length)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;" vertex="1" parent="1">
+          <mxGeometry x="140" y="220" width="160" height="35" as="geometry" />
+        </mxCell>
+
+        <!-- Free Space -->
+        <mxCell id="free_space" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="120" y="260" width="400" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="fs_title" value="Free Space&#xa;자유 공간&#xa;(pd_lower ~ pd_upper)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="220" y="295" width="200" height="50" as="geometry" />
+        </mxCell>
+
+        <!-- Tuple Data -->
+        <mxCell id="tuple_data" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="120" y="380" width="400" height="240" as="geometry" />
+        </mxCell>
+        <mxCell id="td_title" value="Tuple Data&#xa;위로 성장 ↑" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=13;" vertex="1" parent="1">
+          <mxGeometry x="220" y="590" width="200" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="tuple1" value="Tuple 3: HeapTupleHeader + 데이터" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="140" y="560" width="250" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="tuple2" value="Tuple 2: HeapTupleHeader + 데이터" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="140" y="530" width="250" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="tuple3" value="Tuple 1: HeapTupleHeader + 데이터&#xa;(xmin, xmax, ctid, ...)" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="140" y="490" width="250" height="35" as="geometry" />
+        </mxCell>
+
+        <!-- Special Space -->
+        <mxCell id="special_space" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="120" y="620" width="400" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="ss_title" value="Special Space&#xa;(인덱스 전용 - B-tree 메타데이터 등)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=12;" vertex="1" parent="1">
+          <mxGeometry x="180" y="635" width="280" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- Byte markers -->
+        <mxCell id="byte0" value="0" style="text;html=1;strokeColor=none;fillColor=none;align=right;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="80" y="80" width="30" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="byte24" value="24" style="text;html=1;strokeColor=none;fillColor=none;align=right;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="80" y="180" width="30" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="byte8192" value="8192" style="text;html=1;strokeColor=none;fillColor=none;align=right;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="70" y="670" width="40" height="20" as="geometry" />
+        </mxCell>
+
+        <!-- PGDATA Directory Tree -->
+        <mxCell id="pgdata_title" value="PGDATA 디렉토리 구조" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=16;" vertex="1" parent="1">
+          <mxGeometry x="640" y="80" width="240" height="30" as="geometry" />
+        </mxCell>
+
+        <mxCell id="pgdata_tree" value="" style="rounded=0;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;align=left;verticalAlign=top;spacing=10;fontSize=11;fontFamily=Courier New;" vertex="1" parent="1">
+          <mxGeometry x="640" y="120" width="400" height="400" as="geometry" />
+        </mxCell>
+
+        <mxCell id="tree_content" value="$PGDATA/&#xa;├── base/                    # 데이터베이스 파일&#xa;│   ├── 1/                  # template1 (OID=1)&#xa;│   ├── 13483/              # postgres DB&#xa;│   │   ├── 1247           # pg_type 테이블&#xa;│   │   ├── 1249           # pg_attribute&#xa;│   │   └── 16384          # 사용자 테이블&#xa;│   └── 13484/              # 다른 DB&#xa;│&#xa;├── global/                 # 전역 테이블&#xa;│   ├── 1262               # pg_database&#xa;│   └── 1260               # pg_authid&#xa;│&#xa;├── pg_wal/                 # WAL 세그먼트 파일&#xa;│   ├── 000000010000000000000001&#xa;│   ├── 000000010000000000000002&#xa;│   └── archive_status/    # 아카이브 상태&#xa;│&#xa;├── pg_tblspc/              # 테이블스페이스 심볼릭 링크&#xa;│&#xa;├── pg_xact/                # 트랜잭션 커밋 상태 (CLOG)&#xa;│&#xa;├── pg_multixact/           # 다중 트랜잭션 상태&#xa;│&#xa;├── pg_stat/                # 통계 정보&#xa;│&#xa;├── pg_logical/             # 논리 복제 정보&#xa;│&#xa;├── postgresql.conf         # 설정 파일&#xa;├── pg_hba.conf             # 접근 제어&#xa;└── postmaster.pid          # PID 파일" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=top;whiteSpace=wrap;rounded=0;fontSize=10;fontFamily=Courier New;spacing=5;" vertex="1" parent="1">
+          <mxGeometry x="650" y="130" width="380" height="380" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

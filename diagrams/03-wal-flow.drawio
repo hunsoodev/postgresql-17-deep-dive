@@ -1,0 +1,141 @@
+<mxfile host="app.diagrams.net" modified="2026-01-31T00:00:00.000Z" agent="Claude" version="22.0.0">
+  <diagram name="WAL Flow" id="wal-flow">
+    <mxGraphModel dx="1422" dy="794" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="1169" pageHeight="827" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+
+        <!-- Title -->
+        <mxCell id="title" value="PostgreSQL WAL (Write-Ahead Logging) 흐름" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=18;" vertex="1" parent="1">
+          <mxGeometry x="350" y="30" width="450" height="30" as="geometry" />
+        </mxCell>
+
+        <!-- Step 1: Transaction Start -->
+        <mxCell id="step1_box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#dae8fc;strokeColor=#6c8ebf;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="100" y="100" width="280" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="step1_title" value="1. 트랜잭션 시작 및 데이터 수정" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="110" y="110" width="260" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="step1_content" value="BEGIN;&#xa;UPDATE accounts SET balance=1000&#xa;WHERE id=1;&#xa;&#xa;→ shared_buffers에서 페이지 수정&#xa;→ 더티 페이지 (dirty page) 생성" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="120" y="135" width="240" height="55" as="geometry" />
+        </mxCell>
+
+        <!-- Step 2: WAL Record -->
+        <mxCell id="step2_box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#d5e8d4;strokeColor=#82b366;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="100" y="240" width="280" height="100" as="geometry" />
+        </mxCell>
+        <mxCell id="step2_title" value="2. WAL 레코드 생성" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="110" y="250" width="260" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="step2_content" value="• 변경 사항을 WAL 레코드로 작성&#xa;• WAL buffer에 기록&#xa;• LSN (Log Sequence Number) 할당&#xa;  예: 0/16B37A8&#xa;• 페이지 헤더의 pd_lsn 업데이트" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="120" y="275" width="240" height="55" as="geometry" />
+        </mxCell>
+
+        <!-- Arrow 1 to 2 -->
+        <mxCell id="arrow_1_2" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=3;fillColor=#d5e8d4;strokeColor=#82b366;" edge="1" parent="1" source="step1_box" target="step2_box">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Step 3: COMMIT -->
+        <mxCell id="step3_box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff2cc;strokeColor=#d6b656;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="100" y="380" width="280" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="step3_title" value="3. COMMIT - WAL fsync" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="110" y="390" width="260" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="step3_content" value="COMMIT;&#xa;&#xa;→ WAL buffer를 디스크로 fsync&#xa;→ pg_wal/ 디렉토리의 세그먼트 파일에&#xa;   영구 저장 (16MB 파일)&#xa;   예: 000000010000000000000001&#xa;→ 이 시점에 트랜잭션 커밋 완료!&#xa;→ 데이터 파일은 아직 안 써도 됨" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="120" y="415" width="240" height="75" as="geometry" />
+        </mxCell>
+
+        <!-- Arrow 2 to 3 -->
+        <mxCell id="arrow_2_3" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=3;fillColor=#fff2cc;strokeColor=#d6b656;" edge="1" parent="1" source="step2_box" target="step3_box">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Step 4: Checkpoint -->
+        <mxCell id="step4_box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#e1d5e7;strokeColor=#9673a6;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="100" y="540" width="280" height="120" as="geometry" />
+        </mxCell>
+        <mxCell id="step4_title" value="4. Checkpoint - 데이터 파일 쓰기" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=14;" vertex="1" parent="1">
+          <mxGeometry x="110" y="550" width="260" height="20" as="geometry" />
+        </mxCell>
+        <mxCell id="step4_content" value="checkpointer 프로세스가 주기적으로:&#xa;&#xa;→ shared_buffers의 더티 페이지를&#xa;   데이터 파일에 쓰기&#xa;   (base/13483/16384 등)&#xa;→ checkpoint 레코드를 WAL에 기록&#xa;→ pg_control 파일 업데이트&#xa;→ 이전 WAL 파일은 재사용/삭제 가능" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="120" y="575" width="240" height="75" as="geometry" />
+        </mxCell>
+
+        <!-- Arrow 3 to 4 -->
+        <mxCell id="arrow_3_4" value="비동기적으로&#xa;나중에 실행" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;strokeWidth=3;fillColor=#e1d5e7;strokeColor=#9673a6;dashed=1;" edge="1" parent="1" source="step3_box" target="step4_box">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+
+        <!-- Right side: Recovery Process -->
+        <mxCell id="recovery_box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f8cecc;strokeColor=#b85450;strokeWidth=3;" vertex="1" parent="1">
+          <mxGeometry x="480" y="100" width="320" height="200" as="geometry" />
+        </mxCell>
+        <mxCell id="recovery_title" value="복구 (Recovery) 프로세스" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=16;" vertex="1" parent="1">
+          <mxGeometry x="500" y="110" width="280" height="25" as="geometry" />
+        </mxCell>
+        <mxCell id="recovery_content" value="서버 크래시 후 재시작 시:&#xa;&#xa;1. pg_control 파일 읽기&#xa;   → 마지막 checkpoint 위치 확인&#xa;&#xa;2. checkpoint 이후의 WAL 레코드 읽기&#xa;   pg_wal/000000010000000000000001&#xa;&#xa;3. WAL 레코드를 순서대로 재생 (replay)&#xa;   → 데이터 파일 복구&#xa;&#xa;4. 커밋되지 않은 트랜잭션 롤백&#xa;&#xa;5. 정상 운영 모드로 전환&#xa;&#xa;→ WAL 덕분에 데이터 손실 없음!" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=11;" vertex="1" parent="1">
+          <mxGeometry x="500" y="140" width="280" height="150" as="geometry" />
+        </mxCell>
+
+        <!-- Timeline with LSN -->
+        <mxCell id="timeline_box" value="" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f5f5;strokeColor=#666666;strokeWidth=2;" vertex="1" parent="1">
+          <mxGeometry x="480" y="340" width="600" height="320" as="geometry" />
+        </mxCell>
+        <mxCell id="timeline_title" value="LSN 타임라인 (Log Sequence Number)" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontStyle=1;fontSize=16;" vertex="1" parent="1">
+          <mxGeometry x="580" y="350" width="400" height="25" as="geometry" />
+        </mxCell>
+
+        <!-- Timeline axis -->
+        <mxCell id="timeline_axis" value="" style="shape=line;strokeWidth=3;strokeColor=#666666;" vertex="1" parent="1">
+          <mxGeometry x="500" y="440" width="560" height="10" as="geometry" />
+        </mxCell>
+
+        <!-- LSN markers -->
+        <mxCell id="lsn1" value="0/16B3000&#xa;Checkpoint" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="490" y="400" width="80" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="lsn1_marker" value="" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="525" y="433" width="14" height="14" as="geometry" />
+        </mxCell>
+
+        <mxCell id="lsn2" value="0/16B37A8&#xa;UPDATE" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="660" y="400" width="80" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="lsn2_marker" value="" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#d5e8d4;strokeColor=#82b366;" vertex="1" parent="1">
+          <mxGeometry x="693" y="433" width="14" height="14" as="geometry" />
+        </mxCell>
+
+        <mxCell id="lsn3" value="0/16B3850&#xa;COMMIT" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="820" y="400" width="80" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="lsn3_marker" value="" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#fff2cc;strokeColor=#d6b656;" vertex="1" parent="1">
+          <mxGeometry x="853" y="433" width="14" height="14" as="geometry" />
+        </mxCell>
+
+        <mxCell id="lsn4" value="0/16B4000&#xa;Next Checkpoint" style="text;html=1;strokeColor=none;fillColor=none;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;fontSize=10;fontStyle=1;" vertex="1" parent="1">
+          <mxGeometry x="950" y="400" width="100" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="lsn4_marker" value="" style="ellipse;whiteSpace=wrap;html=1;aspect=fixed;fillColor=#e1d5e7;strokeColor=#9673a6;" vertex="1" parent="1">
+          <mxGeometry x="993" y="433" width="14" height="14" as="geometry" />
+        </mxCell>
+
+        <!-- WAL segments -->
+        <mxCell id="wal_segment1" value="WAL Segment 1&#xa;000000010000000000000001&#xa;(16MB)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="500" y="490" width="240" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="wal_segment2" value="WAL Segment 2&#xa;000000010000000000000002&#xa;(16MB)" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ffe6cc;strokeColor=#d79b00;" vertex="1" parent="1">
+          <mxGeometry x="760" y="490" width="240" height="60" as="geometry" />
+        </mxCell>
+
+        <!-- WAL detail -->
+        <mxCell id="wal_detail" value="WAL 레코드 구조:&#xa;• Resource Manager (RM): Heap, Btree, Transaction 등&#xa;• Transaction ID (XID)&#xa;• LSN&#xa;• 이전/이후 이미지 (before/after)&#xa;• CRC 체크섬" style="text;html=1;strokeColor=#d79b00;fillColor=#ffe6cc;align=left;verticalAlign=middle;whiteSpace=wrap;rounded=1;fontSize=11;spacing=5;" vertex="1" parent="1">
+          <mxGeometry x="500" y="570" width="500" height="80" as="geometry" />
+        </mxCell>
+
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>
