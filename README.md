@@ -7,7 +7,7 @@ PostgreSQL 17 기반 심화 학습 — 친절한 개념 설명 + Docker 실습 �
 - **공식 문서 기반**: [PostgreSQL 17 Documentation](https://www.postgresql.org/docs/17/) 참조
 - **OS 파일시스템 연계**: PostgreSQL이 OS 위에서 어떻게 동작하는지 저수준까지 설명
 - **초보자 친화적**: 고급 내용도 "왜 이게 필요한지"부터 시작
-- **실습 중심**: Docker 환경에서 바로 실행 가능한 예제 포함
+- **이론-실습 통합**: 개념 설명 직후 바로 확인할 수 있는 실습 배치
 - **실습 도메인**: 이커머스 쇼핑몰 (users, products, orders 등 실무적 스키마)
 
 ## 학습 로드맵
@@ -70,7 +70,7 @@ db-learning/
 ├── docker/                    # Docker 실습 환경
 │   ├── docker-compose.yml     # 단일 PostgreSQL 17
 │   ├── docker-compose.repl.yml # Primary + Replica
-│   ├── postgresql.conf        # 커스텀 설정
+│   ├── postgresql.conf        # 커스텀 설정 (전 항목 상세 주석 포함)
 │   ├── init.sql               # 이커머스 스키마 + 테스트 데이터
 │   └── monitoring/            # 모니터링 스크립트 (Discord 알림)
 ├── notes/                     # 14개 챕터 학습 노트
