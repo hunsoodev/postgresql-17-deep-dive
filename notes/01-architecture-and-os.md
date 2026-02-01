@@ -4,6 +4,8 @@
 
 PostgreSQL은 클라이언트 요청마다 postmaster가 fork()로 독립적인 백엔드 프로세스를 생성하는 멀티프로세스 아키텍처를 사용하며, 공유 메모리와 IPC를 통해 프로세스 간 통신을 수행합니다.
 
+> 📖 이 노트의 다이어그램은 [The Internals of PostgreSQL](https://www.interdb.jp/pg/)에서 가져왔습니다.
+
 ## 왜 알아야 하는가
 
 ### 성능 문제 진단의 출발점
@@ -71,6 +73,13 @@ PostgreSQL은 클라이언트 요청마다 postmaster가 fork()로 독립적인 
 - 클라이언트가 연결을 끊으면 프로세스 종료
 
 ### 2. OS 관점: 프로세스 모델
+
+![Fig 2.1: PostgreSQL 프로세스 아키텍처](../docs/images/ch02/fig-2-01.png)
+*PostgreSQL 프로세스 아키텍처 (postmaster, backend, background workers)*
+
+> **🔍 그림 해설**
+>
+> PostgreSQL의 프로세스 구조를 호텔에 비유하면 이해하기 쉽습니다. 가장 중앙에 있는 postmaster는 호텔의 프런트 데스크 직원과 같습니다. 손님(클라이언트)이 도착하면 프런트 직원이 직접 서비스를 제공하는 것이 아니라, 각 손님마다 전담 집사(backend process)를 배정합니다. 이렇게 하면 한 손님의 문제가 다른 손님에게 영향을 주지 않죠. 그림 주변에 보이는 background writer, checkpointer, WAL writer 같은 프로세스들은 호텔의 유지보수 직원들입니다. 청소부(autovacuum)는 주기적으로 불필요한 것들을 정리하고, 보안 카메라 담당자(logger)는 모든 활동을 기록하며, 백업 발전기 관리자(WAL writer)는 만약의 사고에 대비합니다. 이들은 모두 shared memory라는 공용 게시판을 통해 정보를 공유합니다. 이런 구조 덕분에 한 세션에서 문제가 생겨도 전체 시스템이 멈추지 않습니다.
 
 #### postmaster의 역할
 
@@ -222,6 +231,13 @@ autovacuum_vacuum_insert_scale_factor = 0.2       -- v17: INSERT 기반 트리�
 - 구독(subscription) 상태 모니터링
 
 ### 5. OS 관점: 공유 메모리
+
+![Fig 2.2: PostgreSQL 메모리 아키텍처](../docs/images/ch02/fig-2-02.png)
+*PostgreSQL 메모리 아키텍처 (shared memory vs local memory)*
+
+> **🔍 그림 해설**
+>
+> 이 그림은 PostgreSQL이 메모리를 어떻게 나누어 사용하는지 보여줍니다. 사무실 건물을 떠올려 보세요. 각 직원(backend process)은 자신만의 책상(local memory)을 가지고 있습니다. work_mem은 정렬이나 계산을 할 때 사용하는 개인 메모장이고, temp_buffers는 임시로 뭔가를 적어두는 포스트잇 같은 것입니다. 하지만 회사 전체가 함께 사용하는 공간도 있습니다. shared_buffers는 모든 직원이 함께 보는 공용 서류 캐비닛입니다. 여기에는 자주 참조하는 데이터 페이지들이 저장되어 있어서, 매번 디스크에서 읽어오지 않아도 됩니다. WAL buffer는 모든 변경사항을 기록하는 공용 메모장이고, commit log(CLOG)는 어떤 트랜잭션이 완료되었는지 기록하는 공용 체크리스트입니다. 이렇게 메모리를 나누는 이유는 간단합니다. 혼자만 쓰는 작업은 개인 공간에서, 여럿이 함께 봐야 하는 정보는 공용 공간에 두는 것이 효율적이기 때문입니다.
 
 #### System V Shared Memory vs mmap
 

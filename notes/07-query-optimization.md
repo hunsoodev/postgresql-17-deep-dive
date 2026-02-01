@@ -1,5 +1,7 @@
 # 07. 쿼리 최적화와 EXPLAIN
 
+> 📖 이 노트의 다이어그램은 [The Internals of PostgreSQL](https://www.interdb.jp/pg/)에서 가져왔습니다.
+
 ## 한줄 요약
 PostgreSQL의 쿼리 플래너와 실행 계획을 이해하고 EXPLAIN을 활용하여 느린 쿼리를 분석하고 최적화하는 방법을 다룬다.
 
@@ -27,6 +29,13 @@ PostgreSQL의 쿼리 플래너와 실행 계획을 이해하고 EXPLAIN을 활�
 ## 핵심 개념
 
 ### 1. EXPLAIN 기본 구조
+
+![Fig 3.1: 쿼리 처리 전체 흐름 (Parser → Planner → Executor)](../docs/images/ch03/fig-3-01.png)
+*Query processing overview: Parser → Analyzer → Rewriter → Planner/Optimizer → Executor pipeline.*
+
+> **🔍 그림 해설**
+>
+> SQL 문이 실행되기까지의 여정입니다. 마치 법안이 국회를 통과하는 과정과 같습니다. Parser가 문법을 검사하고(구문 분석), Analyzer가 테이블/컬럼 존재를 확인하고(의미 분석), Rewriter가 뷰/규칙을 적용하고(쿼리 재작성), Planner가 가장 효율적인 실행 경로를 선택하고(비용 기반 최적화), 마지막으로 Executor가 실제로 실행합니다. 이 파이프라인을 이해하면 왜 통계가 중요한지(Planner가 의존), 왜 뷰가 성능에 영향을 줄 수 있는지(Rewriter 단계) 등을 알 수 있습니다. EXPLAIN은 Planner가 선택한 실행 계획을 보여주는 도구입니다.
 
 #### EXPLAIN 출력 읽는 법
 ```sql
@@ -128,6 +137,13 @@ EXPLAIN ANALYZE
 SELECT * FROM orders WHERE total_amount > 100;
 ```
 
+![Fig 3.2: Sequential Scan](../docs/images/ch03/fig-3-02.png)
+*Sequential Scan: Reads every page of the table from start to end.*
+
+> **🔍 그림 해설**
+>
+> 책을 처음부터 끝까지 읽는 것과 같습니다. PostgreSQL이 테이블의 모든 페이지를 순차적으로 읽으며 조건에 맞는 행을 찾습니다. 비효율적으로 보이지만, 테이블이 작거나 대부분의 행을 반환해야 할 때는 오히려 이게 가장 빠릅니다. 순차 I/O이므로 디스크에 친화적이며(HDD에서 특히 유리), 인덱스 탐색 오버헤드가 없습니다. 예를 들어 100만 건 중 90만 건을 반환해야 한다면, 인덱스로 90만 번 랜덤 I/O하는 것보다 테이블 전체를 순차적으로 한 번 읽는 것이 훨씬 빠릅니다.
+
 특징:
 - 테이블의 모든 페이지를 순차적으로 읽음
 - 작은 테이블이거나 대부분의 행이 필요할 때 효율적
@@ -141,6 +157,13 @@ CREATE INDEX idx_orders_user_id ON orders(user_id);
 EXPLAIN ANALYZE
 SELECT * FROM orders WHERE user_id = 1000;
 ```
+
+![Fig 3.3: Index Scan](../docs/images/ch03/fig-3-03.png)
+*Index Scan: Traverse index tree → find tuple pointer → visit heap page to fetch row.*
+
+> **🔍 그림 해설**
+>
+> 책의 색인(목차)에서 키워드를 찾고, 해당 페이지로 점프하는 것과 같습니다. B-tree 인덱스를 탐색하여 원하는 키를 찾고, 거기서 CTID(테이블 내 행 위치)를 획득한 뒤, 실제 테이블 페이지로 이동하여 행을 가져옵니다. 소수의 행만 필요할 때 효율적이지만, 각 행마다 랜덤 I/O가 발생합니다. 선택도(selectivity)가 낮을수록(결과가 적을수록) 유리하며, 보통 전체의 5~10% 이하일 때 플래너가 인덱스 스캔을 선택합니다. 인덱스가 메모리에 캐시되어 있으면 매우 빠르지만, 디스크에서 읽어야 한다면 성능이 저하됩니다.
 
 특징:
 - 인덱스를 탐색 후 테이블 페이지 접근 (랜덤 I/O)
@@ -171,6 +194,13 @@ SELECT * FROM orders
 WHERE user_id = 1000 OR user_id = 2000;
 ```
 
+![Fig 3.4: Bitmap Index Scan](../docs/images/ch03/fig-3-04.png)
+*Bitmap Index Scan: Index scan creates bitmap of matching pages → bitmap heap scan reads those pages.*
+
+> **🔍 그림 해설**
+>
+> 두 단계로 동작합니다. 먼저 인덱스에서 "어떤 페이지에 결과가 있는지" 비트맵을 만듭니다(1단계: Bitmap Index Scan). 그다음 비트맵에 표시된 페이지만 순서대로 읽습니다(2단계: Bitmap Heap Scan). 마치 여러 색인에서 페이지 번호를 모두 모은 뒤, 페이지 순서대로 정렬해서 책을 읽는 것과 같습니다. Index Scan의 랜덤 I/O 문제를 해결하면서, Seq Scan처럼 전체를 읽지 않아도 됩니다. 중간 수준의 선택도(10~30%)에서 플래너가 선택하며, 여러 인덱스를 AND/OR 조합할 때도 유용합니다.
+
 특징:
 - 인덱스에서 비트맵 생성 → 정렬 → 테이블 스캔
 - 여러 인덱스 조합 가능 (Bitmap OR/AND)
@@ -188,6 +218,13 @@ JOIN users u ON o.user_id = u.user_id
 WHERE o.order_id = 12345;
 ```
 
+![Fig 3.7: Nested Loop Join](../docs/images/ch03/fig-3-07.png)
+*Nested Loop Join: For each row in outer table, scan inner table for matching rows.*
+
+> **🔍 그림 해설**
+>
+> 이중 for문과 같습니다. 바깥 테이블(outer)의 각 행에 대해 안쪽 테이블(inner)을 탐색하며 매칭되는 행을 찾습니다. 안쪽 테이블에 인덱스가 있으면 빠르지만, 없으면 O(N×M)으로 매우 느립니다. 작은 테이블(외부) + 큰 테이블에 인덱스(내부) 조합에서 최적입니다. 예를 들어 외부 루프가 10번 돌고, 내부에서 인덱스로 각 1ms에 조회하면 총 10ms에 완료됩니다. 하지만 외부가 10,000번이고 내부에 인덱스가 없다면 재앙이 됩니다. 플래너는 통계를 보고 외부/내부 테이블을 선택합니다.
+
 특징:
 - 외부 루프 각 행마다 내부 테이블 검색
 - 작은 결과셋에 효율적
@@ -203,6 +240,13 @@ JOIN users u ON o.user_id = u.user_id
 WHERE o.created_at >= '2024-01-01';
 ```
 
+![Fig 3.8: Hash Join](../docs/images/ch03/fig-3-08.png)
+*Hash Join: Build hash table from smaller table, probe with larger table.*
+
+> **🔍 그림 해설**
+>
+> 먼저 작은 테이블로 해시 테이블을 메모리에 만듭니다(Build 단계). 마치 작은 사전을 통째로 외우는 것과 같습니다. 그다음 큰 테이블을 한 행씩 읽으며 해시 테이블에서 O(1)로 매칭을 찾습니다(Probe 단계). 등호(=) 조인에만 사용 가능하며, work_mem이 충분하면 매우 빠릅니다. 하지만 work_mem이 부족하면 디스크에 임시 파일을 만들어(batches) 성능이 저하됩니다. 중간 크기 테이블 조인에서 자주 선택되며, 양쪽 테이블이 모두 크면 Hash Join보다 Merge Join이 유리할 수 있습니다.
+
 특징:
 - 작은 테이블로 해시 테이블 생성
 - 큰 테이블 스캔하며 해시 조회
@@ -217,6 +261,13 @@ FROM orders o
 JOIN order_items oi ON o.order_id = oi.order_id
 ORDER BY o.order_id;
 ```
+
+![Fig 3.9: Merge Join](../docs/images/ch03/fig-3-09.png)
+*Merge Join: Both inputs sorted on join key, then merged like a zipper.*
+
+> **🔍 그림 해설**
+>
+> 두 테이블이 모두 조인 키로 정렬된 상태에서, 지퍼를 잠그듯 양쪽을 동시에 훑습니다. 두 개의 정렬된 배열을 병합(merge)하는 알고리즘과 동일합니다. 이미 정렬되어 있거나(인덱스 활용 가능) 대용량 테이블 간 조인에서 효율적입니다. 정렬 비용이 크지만, 한 번 정렬하면 선형 시간(O(N+M))에 조인이 완료됩니다. ORDER BY가 조인 키와 같으면 추가 정렬이 불필요하므로 더욱 유리합니다. 양쪽 테이블이 모두 수백만 건일 때 Hash Join보다 안정적입니다.
 
 특징:
 - 양쪽 테이블이 정렬되어 있어야 함

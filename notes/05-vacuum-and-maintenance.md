@@ -4,6 +4,8 @@
 
 PostgreSQL은 MVCC로 인해 삭제/수정된 데이터가 즉시 사라지지 않고 "죽은 튜플(Dead Tuple)"로 남기 때문에, VACUUM 작업으로 이를 정리하고 공간을 재사용 가능하도록 표시해야 합니다.
 
+> 📖 이 노트의 다이어그램은 [The Internals of PostgreSQL](https://www.interdb.jp/pg/)에서 가져왔습니다.
+
 ## 왜 알아야 하는가
 
 ### 실무에서 마주하는 문제들
@@ -46,6 +48,17 @@ PostgreSQL은 MVCC로 인해 삭제/수정된 데이터가 즉시 사라지지 �
 ## 핵심 개념
 
 ### 1. Dead Tuple이 생기는 과정
+
+![Fig 6.1: Dead Tuple 누적 과정](../docs/images/ch06/fig-6-01.png)
+*Dead Tuple 누적 과정*
+
+> **🔍 그림 해설**
+>
+> UPDATE나 DELETE를 하면 기존 행이 즉시 사라지지 않습니다. xmax 필드에 "삭제됨" 표시만 찍히고 유령처럼 남아있죠.
+> 이게 바로 "Dead Tuple"입니다. 아무도 볼 수 없지만 파일에는 여전히 자리를 차지하고 있습니다.
+> 시간이 지나면서 UPDATE/DELETE가 반복되면 Dead Tuple이 쌓입니다. 페이지가 유령들로 가득 차는 것이죠.
+> 이것이 "테이블 bloat(부풀어오름)"입니다. 실제 데이터는 1만 건인데 파일엔 10만 건 크기만큼 공간을 차지합니다.
+> VACUUM이 바로 이 유령들을 쫓아내는 "고스트버스터"입니다. Dead Tuple을 정리하고 공간을 재사용 가능하게 만들어줍니다.
 
 **MVCC의 부작용:**
 
@@ -128,6 +141,17 @@ LIMIT 10;
 
 ### 3. VACUUM의 역할
 
+![Fig 6.2: VACUUM 처리 과정](../docs/images/ch06/fig-6-02.png)
+*VACUUM 처리 과정*
+
+> **🔍 그림 해설**
+>
+> VACUUM은 청소부처럼 모든 페이지를 돌아다니며 Dead Tuple(유령)을 찾아냅니다. "이 행은 어떤 트랜잭션도 더 이상 안 봐" 하고 확인되면
+> 그 공간을 "재사용 가능" 스티커를 붙입니다. 실제로 데이터를 지우는 게 아니라, Free Space Map(FSM)에 "여기 빈 공간 있어요"라고 표시합니다.
+> 나중에 누군가 INSERT를 하면 PostgreSQL은 FSM을 보고 "오, 이 페이지에 빈 공간이 있네?"하고 거기에 새 데이터를 넣습니다.
+> 중요한 점: VACUUM은 파일 크기를 줄이지 않습니다! 마치 방을 정리해도 방 크기는 그대로인 것처럼요.
+> 파일은 그대로 120MB인데, 내부적으로 60MB는 쓰고 60MB는 "빈 공간"으로 표시되어 있는 상태가 됩니다.
+
 **VACUUM이 하는 일:**
 
 1. **Dead Tuple 공간 재사용 표시**
@@ -154,6 +178,17 @@ LIMIT 10;
 - 인덱스 재구성 (REINDEX 필요)
 
 ### 4. VACUUM vs VACUUM FULL
+
+![Fig 6.5: VACUUM vs VACUUM FULL 비교](../docs/images/ch06/fig-6-05.png)
+*VACUUM vs VACUUM FULL 비교*
+
+> **🔍 그림 해설**
+>
+> 일반 VACUUM은 방 안의 물건을 정리하는 것입니다. 서랍을 정리하고 쓰레기를 버리지만, 방 크기는 그대로입니다.
+> VACUUM FULL은 아예 더 작은 아파트로 이사하는 것입니다. 모든 물건을 새 파일에 빽빽하게 다시 포장하고, 기존 파일은 버립니다.
+> 일반 VACUUM: 서비스 계속 가능(shared lock), 빠름, 파일 크기 유지. 매일 하는 청소라고 생각하세요.
+> VACUUM FULL: 서비스 중단 필요(exclusive lock), 느림, 파일 크기 축소. 그리고 디스크 공간이 테이블 크기의 2배 필요합니다(복사본 만들어야 하니까).
+> 일반적으로 VACUUM FULL은 거의 쓰지 않습니다. Bloat이 극심할 때만요. 대신 pg_repack 같은 온라인 도구를 씁니다.
 
 | 구분 | VACUUM | VACUUM FULL |
 |------|--------|-------------|
@@ -192,6 +227,17 @@ LIMIT 10;
 
 ### 5. Free Space Map (FSM)
 
+![Fig 6.3: Free Space Map (FSM)](../docs/images/ch06/fig-6-03.png)
+*Free Space Map (FSM)*
+
+> **🔍 그림 해설**
+>
+> FSM은 주차장 안내판과 같습니다. "A 구역: 10대 가능, B 구역: 5대 가능, C 구역: 꽉참" 이런 식으로 각 페이지의 빈 공간 크기를 기록합니다.
+> 트리 구조로 되어 있어서 빠르게 검색할 수 있습니다. 각 페이지당 하나의 항목이 있죠.
+> 새 데이터를 INSERT할 때 PostgreSQL은 "어느 페이지에 넣을까?" 고민합니다. FSM을 보고 "오, 페이지 5번에 4KB 빈 공간이 있네!" 하고 바로 찾아갑니다.
+> FSM이 없다면? 빈 공간 찾으려고 모든 페이지를 순차적으로 뒤져야 합니다. 100만 페이지면 100만 번 확인해야죠. 끔찍하게 느립니다.
+> VACUUM이 FSM을 업데이트해주기 때문에, INSERT 성능이 빠르게 유지됩니다. 항상 최신 "주차 가능 정보"를 제공하는 셈이죠.
+
 PostgreSQL은 각 테이블/인덱스마다 FSM 파일을 유지합니다.
 
 ```bash
@@ -226,6 +272,17 @@ LIMIT 10;
 ```
 
 ### 6. Visibility Map (VM)
+
+![Fig 6.4: Visibility Map (VM)](../docs/images/ch06/fig-6-04.png)
+*Visibility Map (VM)*
+
+> **🔍 그림 해설**
+>
+> VM은 "깨끗한 페이지" 표시기입니다. 각 페이지마다 1비트짜리 깃발이 있습니다. 깃발이 세워져 있으면 "이 페이지의 모든 행은 누구에게나 보여!"
+> 왜 이게 중요할까요? 두 가지 최적화가 가능합니다. 첫째, VACUUM이 깨끗한 페이지는 건너뛸 수 있습니다. "여기 청소할 거 없어, 패스!"
+> 둘째, Index-Only Scan이 가능해집니다. 인덱스에서 답을 찾았는데 보통은 테이블에 가서 "이 행이 내 트랜잭션에게 보이는지" 확인해야 합니다.
+> 하지만 VM 비트가 켜져 있으면? "이 페이지는 모두에게 보이니까 테이블 안 가봐도 돼!" 하고 건너뜁니다. 엄청난 성능 향상이죠.
+> VACUUM을 실행하면 VM이 업데이트되고, 그 결과 읽기 쿼리가 빨라집니다. VACUUM이 쓰기만 최적화하는 게 아니라 읽기도 빠르게 만듭니다!
 
 각 페이지가 "모두 보이는 튜플만 있는지" 추적합니다.
 
@@ -262,6 +319,28 @@ LIMIT 10;
 --     1 | t           | f          ← Index-Only Scan만 가능
 --     2 | f           | f          ← 최적화 불가
 ```
+
+![Fig 7.1: HOT (Heap-Only Tuple) 업데이트](../docs/images/ch07/fig-7-01.png)
+*HOT (Heap-Only Tuple) 업데이트*
+
+> **🔍 그림 해설**
+>
+> HOT은 자주 UPDATE되는 테이블을 위한 최적화입니다. 보통 UPDATE하면 인덱스도 다 업데이트해야 합니다.
+> 하지만 인덱스에 없는 컬럼만 바꾼다면? 예를 들어 "마지막 로그인 시각" 컬럼을 업데이트하는데 인덱스는 이메일에만 걸려있다면?
+> HOT은 새 튜플 버전을 같은 페이지 안에 만들고, 기존 튜플에서 체인으로 연결합니다. 인덱스는 건드리지 않고요!
+> 인덱스 업데이트를 건너뛰니까 훨씬 빠릅니다. 그리고 인덱스 bloat도 안 생깁니다. UPDATE가 많은 테이블에서 성능이 크게 향상됩니다.
+> 조건: 같은 페이지 안에 공간이 있어야 하고, 인덱스된 컬럼을 안 바꿔야 합니다. VACUUM이 공간을 확보해주면 HOT이 더 잘 작동합니다.
+
+![Fig 7.2: Index-Only Scan과 VM](../docs/images/ch07/fig-7-02.png)
+*Index-Only Scan과 VM*
+
+> **🔍 그림 해설**
+>
+> 보통 인덱스에서 행을 찾으면 테이블에 가서 "이 행이 내 트랜잭션에 보이는가?" 확인해야 합니다(Heap Fetch).
+> 하지만 Visibility Map에 "이 페이지는 모두에게 보임" 비트가 켜져 있으면? 테이블 방문을 건너뜁니다!
+> 인덱스만 보고 답을 돌려줍니다. 이게 "Index-Only Scan"입니다. 테이블 I/O가 0이 되니까 엄청 빠릅니다.
+> VM은 VACUUM이 업데이트해줍니다. 그래서 VACUUM을 실행하면 쓰기 성능뿐만 아니라 읽기 성능도 좋아집니다!
+> SELECT 쿼리가 느려졌다면? VACUUM을 실행해보세요. VM이 갱신되면서 Index-Only Scan이 활성화될 수 있습니다.
 
 **Index-Only Scan과의 관계:**
 
@@ -484,6 +563,17 @@ FROM pg_stat_progress_vacuum;
 
 ## Autovacuum
 
+![Fig 6.6: Autovacuum 워커](../docs/images/ch06/fig-6-06.png)
+*Autovacuum 워커*
+
+> **🔍 그림 해설**
+>
+> Autovacuum은 자동 청소 로봇입니다. "런처(launcher)"라는 관리자가 모든 테이블을 감시하고 있습니다.
+> 런처는 각 테이블의 "더러움 점수"를 계산합니다: Dead Tuple 개수를 셉니다. 임계값(threshold)을 넘으면?
+> "워커(worker)" 프로세스를 파견합니다. "3번 워커, 저 event_logs 테이블 좀 청소하고 와!" 워커가 VACUUM을 실행하죠.
+> 기본 설정은 "Dead Tuple이 50 + 전체 행 수의 20%"를 넘으면 청소합니다. 1000행 테이블이면 250개 Dead Tuple에서 트리거됩니다.
+> 여러 워커가 동시에 다른 테이블을 청소할 수 있습니다. 직접 VACUUM 명령어를 칠 필요가 없어요. 자동으로 다 해줍니다!
+
 ### 1. Autovacuum 동작 원리
 
 PostgreSQL은 백그라운드에서 자동으로 VACUUM을 실행합니다.
@@ -665,6 +755,18 @@ ORDER BY last_autovacuum DESC NULLS LAST;
    ```
 
 ## Transaction ID Wraparound
+
+![Fig 6.7: Transaction ID Wraparound 문제](../docs/images/ch06/fig-6-07.png)
+*Transaction ID Wraparound 문제*
+
+> **🔍 그림 해설**
+>
+> 트랜잭션 ID는 32비트 숫자라서 약 42억까지만 갑니다. 42억 번째 다음에는 다시 0으로 돌아갑니다(wraparound).
+> 시계 바늘이 12에서 1로 넘어가듯이요. 문제는 PostgreSQL이 "과거/미래"를 XID 비교로 판단한다는 점입니다.
+> XID=10인 행을 만들었는데, wraparound로 현재 XID가 100이 되면? 10<100이라 과거 데이터로 보입니다(정상).
+> 하지만 계속 가서 현재 XID가 다시 0 근처로 오면? 갑자기 XID=10이 "미래" 데이터로 보이게 됩니다! 데이터가 사라지는 거죠.
+> 해결책: VACUUM이 오래된 XID를 "FrozenXID(2)"로 바꿉니다. "이 행은 영원히 과거야"라고 표시하는 겁니다.
+> 이래서 autovacuum을 절대 끄면 안 됩니다. Wraparound로 데이터베이스가 읽기 전용 모드로 강제 전환될 수 있어요!
 
 ### 1. Wraparound 문제란?
 

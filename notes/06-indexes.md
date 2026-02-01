@@ -1,5 +1,7 @@
 # 인덱스 심화
 
+> 📖 이 노트의 다이어그램은 [The Internals of PostgreSQL](https://www.interdb.jp/pg/)에서 가져왔습니다.
+
 ## 한줄 요약
 
 인덱스는 "책의 목차"처럼 데이터를 빠르게 찾을 수 있게 해주는 보조 자료 구조로, PostgreSQL은 B-tree, Hash, GiST, SP-GiST, GIN, BRIN 등 다양한 인덱스 타입을 지원하며 각각 특정 데이터 타입과 쿼리 패턴에 최적화되어 있습니다.
@@ -139,10 +141,24 @@ SELECT email, username FROM users WHERE email = 'alice@example.com';
 -- Execution Time: 0.056 ms
 ```
 
+![Fig 7.2: Index-Only Scan 메커니즘](../docs/images/ch07/fig-7-02.png)
+*Index-Only Scan mechanism: Index contains enough data to answer query, heap visit skipped when VM says page is all-visible.*
+
+> **🔍 그림 해설**
+>
+> Covering Index를 만들면 인덱스만으로 쿼리를 응답할 수 있습니다. 마치 책의 목차에 본문 일부까지 미리 적어둔 것과 같습니다. VM(Visibility Map)이 "이 페이지는 전부 보임" 표시를 해두면, 실제 테이블 페이지 방문 없이 결과를 반환합니다. 이는 I/O를 대폭 줄여 가장 빠른 스캔 방식입니다. INCLUDE 절로 자주 함께 조회되는 컬럼을 인덱스에 포함시키면, 실제 데이터 페이지를 읽지 않고도 쿼리에 필요한 모든 정보를 인덱스에서 직접 가져올 수 있습니다. 단, VM이 최신 상태여야 하므로 정기적인 VACUUM이 필수입니다.
+
 **특징:**
 - 인덱스만으로 쿼리 응답 (테이블 접근 안 함)
 - Visibility Map 필요 (VACUUM으로 설정)
 - 가장 빠른 스캔 방식
+
+![Fig 7.3: Index-Only Scan과 Visibility Map](../docs/images/ch07/fig-7-03.png)
+*Index-Only Scan with Visibility Map detail: Shows the interaction between index leaf nodes, VM bits, and heap pages.*
+
+> **🔍 그림 해설**
+>
+> VM 비트가 1인 페이지는 힙 방문을 건너뜁니다. Visibility Map은 각 테이블 페이지가 "모든 트랜잭션에게 보이는 행만 포함하는지" 추적하는 비트맵입니다. 마치 도서관 사서가 "이 책장은 정리 완료" 표시를 해두는 것과 같습니다. 인덱스 리프 노드에서 CTID(행 위치)를 찾았을 때, 해당 페이지의 VM 비트가 1이면 실제 힙 페이지를 방문하지 않고도 "이 행은 확실히 유효하다"고 판단할 수 있습니다. VACUUM이 VM을 최신으로 유지하므로, 정기적인 VACUUM이 읽기 성능도 향상시킵니다. 이는 MVCC와 Index-Only Scan의 핵심 연결고리입니다.
 
 **4) Bitmap Scan**
 
@@ -412,6 +428,13 @@ WITH (fillfactor = 70);
 ```
 
 ### 4. 중복 처리 (Duplicate Keys)
+
+![Fig 7.1: HOT (Heap-Only Tuple) 업데이트](../docs/images/ch07/fig-7-01.png)
+*HOT (Heap-Only Tuple) update: New tuple version linked within the same page, no index update needed when non-indexed columns change.*
+
+> **🔍 그림 해설**
+>
+> 인덱스가 걸리지 않은 컬럼만 변경하면, 같은 페이지 안에서 새 버전을 체인으로 연결합니다. 마치 책의 목차를 수정하지 않고 본문만 업데이트하는 것과 같습니다. 인덱스를 건드리지 않아 I/O가 절감됩니다. 예를 들어 users 테이블에서 email에만 인덱스가 있고 last_login 컬럼을 업데이트하면, 새 행 버전이 같은 8KB 페이지 내에서 생성되고 기존 행에서 포인터로 연결됩니다. 인덱스는 여전히 같은 CTID를 가리키므로 갱신이 불필요합니다. 이것이 자주 업데이트되는 테이블에서 인덱스를 최소화해야 하는 핵심 이유입니다. 인덱스가 많을수록 HOT 업데이트가 불가능해져 성능이 저하됩니다.
 
 PostgreSQL 13+는 중복 키를 효율적으로 처리합니다.
 

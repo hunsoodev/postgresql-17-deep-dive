@@ -1,5 +1,7 @@
 # 13. 백업, 복구, 복제
 
+> 📖 이 노트의 다이어그램은 [The Internals of PostgreSQL](https://www.interdb.jp/pg/)에서 가져왔습니다.
+
 ## 한줄 요약
 PostgreSQL의 백업(논리적/물리적), PITR 복구, 스트리밍 복제, 논리적 복제를 이해하고 고가용성 시스템을 구축할 수 있다.
 
@@ -364,6 +366,13 @@ $ tree -L 2 /var/lib/postgresql/17/main/pg_wal
 
 ### 1. 논리적 백업 - pg_dump
 
+![Fig 10.1: 베이스 백업 과정](../docs/images/ch10/fig-10-01.png)
+*베이스 백업 프로세스: pg_basebackup이 체크포인트를 강제 실행한 후 모든 데이터 파일을 복사하며, 복사 중 생성된 WAL을 캡처합니다.*
+
+> **🔍 그림 해설**
+>
+> pg_basebackup은 "움직이는 대상을 사진 찍는" 것과 같습니다. 데이터베이스가 계속 변경되는 상황에서 일관된 백업을 만들어야 하니까요. 먼저 체크포인트를 실행해 메모리의 더티 페이지를 디스크에 기록하여 명확한 시작점을 만듭니다. 그 후 전체 데이터 파일을 복사하는데, 복사하는 동안에도 새로운 변경이 발생합니다. 이 변경들은 WAL(Write-Ahead Log)에 기록되어 함께 보관됩니다. 나중에 복원할 때는 기본 복사본을 먼저 놓고, 그 위에 WAL을 재생하면 정확히 일관된 상태가 됩니다. 마치 건물 설계도(기본 백업)와 시공 일지(WAL)를 함께 보관하는 것처럼, 두 가지가 합쳐져야 완전한 복구가 가능합니다.
+
 #### 전체 데이터베이스 백업
 ```bash
 # 1. 기본 SQL 형식 백업
@@ -552,6 +561,22 @@ $ pg_ctl -D /backup/combined_backup start
 
 ### 4. PITR (Point-in-Time Recovery)
 
+![Fig 10.2: PITR 복구 과정](../docs/images/ch10/fig-10-02.png)
+*PITR 복구: 베이스 백업 복원 → 아카이브된 WAL 파일 재생 → 목표 타임스탬프에서 중지*
+
+> **🔍 그림 해설**
+>
+> PITR(Point-In-Time Recovery)은 마치 게임의 세이브 파일과 플레이 기록을 함께 가지고 있는 것과 같습니다. 베이스 백업은 특정 시점의 "세이브 파일"이고, WAL 아카이브는 그 이후의 "플레이 기록"입니다. 복구하려면 먼저 세이브 파일을 불러온 후(베이스 백업 복원), 기록된 플레이를 차례대로 재생합니다(WAL 재생). 핵심은 원하는 시점에 정확히 멈출 수 있다는 것입니다. "어제 오후 3시 직전 상태로 돌려줘"라고 하면, 그 시각까지만 WAL을 재생하고 멈춥니다. 실수로 오후 3시에 데이터를 삭제했다면, 3시 1분 전으로 복구하여 삭제가 일어나기 직전 상태를 복원할 수 있습니다. 이것이 "시점 복구"의 핵심입니다.
+
+![Fig 10.3: 타임라인과 아카이빙](../docs/images/ch10/fig-10-03.png)
+*타임라인과 아카이빙: PITR 복구 후 WAL 타임라인 분기, archive_command가 WAL 세그먼트를 아카이브 디렉토리로 복사하는 과정*
+
+> **🔍 그림 해설**
+>
+> PITR로 복구하면 새로운 "타임라인"이 생성됩니다. 영화에서 시간여행으로 과거를 바꾸면 평행 우주가 생기는 것과 같은 원리입니다. 원래 타임라인에서 "월요일 → 화요일 → 수요일"로 진행되다가, 화요일로 복구하면 거기서부터 "화요일' → 수요일'"로 새로운 이력이 시작됩니다. 각 타임라인은 독립적인 WAL 파일 시퀀스를 가지며, archive_command는 WAL 세그먼트가 가득 찰 때마다 안전한 아카이브 위치로 복사합니다. 이렇게 아카이빙된 WAL 덕분에 언제든지 원하는 시점으로 복구할 수 있고, 여러 타임라인을 추적할 수 있습니다. 타임라인 ID는 복구할 때마다 1씩 증가합니다(1 → 2 → 3...).
+
+
+
 #### 아카이빙 설정
 ```sql
 -- postgresql.conf 수정
@@ -565,6 +590,13 @@ archive_timeout = 300                  -- 5분마다 WAL 스위치 (RPO 5분)
 -- 설정 적용
 $ sudo systemctl reload postgresql
 ```
+
+![Fig 10.4: WAL 아카이빙 설정](../docs/images/ch10/fig-10-04.png)
+*WAL 아카이빙 설정: archive_command가 완료된 WAL 세그먼트를 pg_wal/에서 아카이브 디렉토리로 복사*
+
+> **🔍 그림 해설**
+>
+> WAL 아카이빙은 데이터베이스의 "자동 백업 시스템"입니다. PostgreSQL은 모든 변경을 WAL 파일에 기록하는데, 각 WAL 세그먼트는 16MB 크기입니다. 한 세그먼트가 가득 차면, archive_command가 자동으로 실행되어 그 파일을 안전한 별도 위치(아카이브 디렉토리, S3, 네트워크 스토리지 등)로 복사합니다. 이 과정은 마치 자동으로 중요 문서를 금고에 보관하는 것과 같습니다. pg_wal/ 디렉토리의 WAL 파일은 일정 시간이 지나면 재사용되거나 삭제될 수 있지만, 아카이브에 복사된 파일은 안전하게 보존됩니다. 이 아카이브가 있어야 PITR이 가능하며, 베이스 백업 시점 이후의 모든 변경을 재생할 수 있습니다.
 
 #### 아카이브 디렉토리 준비
 ```bash
@@ -691,6 +723,22 @@ SELECT * FROM pg_control_checkpoint();
 ```
 
 ### 5. 스트리밍 복제 구성
+
+![Fig 11.1: 스트리밍 복제 아키텍처](../docs/images/ch11/fig-11-01.png)
+*스트리밍 복제 아키텍처: Primary 서버의 WAL sender 프로세스 → TCP 네트워크 → Standby 서버의 WAL receiver 프로세스 → startup 프로세스가 WAL 재생*
+
+> **🔍 그림 해설**
+>
+> 스트리밍 복제는 "실시간 방송"과 같습니다. Primary 서버가 방송국이라면, Standby 서버는 수신기입니다. Primary에서 데이터 변경이 발생하면 WAL sender 프로세스가 방송국 송출기처럼 WAL 레코드를 TCP 네트워크를 통해 실시간으로 전송합니다. Standby의 WAL receiver 프로세스는 이를 받아 로컬 pg_wal/ 디렉토리에 기록하고, startup 프로세스가 받는 즉시 재생하여 데이터에 반영합니다. 이 과정이 몇 초(또는 밀리초) 단위로 일어나므로 거의 실시간으로 Primary와 Standby가 동기화됩니다. 덕분에 Primary 장애 시 Standby를 즉시 승격시켜 서비스를 계속할 수 있고, 읽기 쿼리를 Standby에 분산하여 부하를 줄일 수도 있습니다.
+
+![Fig 11.2: WAL sender와 WAL receiver](../docs/images/ch11/fig-11-02.png)
+*WAL sender와 WAL receiver: 두 프로세스의 상세 동작 — WAL sender가 pg_wal/에서 읽어 TCP로 전송, WAL receiver가 standby의 pg_wal/에 기록하고 startup 프로세스가 재생*
+
+> **🔍 그림 해설**
+>
+> WAL sender와 receiver는 전용 "핫라인"으로 연결된 한 쌍의 프로세스입니다. Primary의 WAL sender는 pg_wal/ 디렉토리에서 새로운 WAL 레코드를 읽어 즉시 네트워크로 보냅니다. Standby의 WAL receiver는 이를 받아 자신의 pg_wal/ 디렉토리에 기록하고, startup 프로세스에게 신호를 보냅니다. startup 프로세스는 WAL을 하나씩 재생하여 실제 데이터 파일에 변경을 적용합니다. 이 파이프라인이 끊기면(네트워크 장애, Standby 다운) 복제 지연이 발생합니다. 그래서 pg_stat_replication 뷰로 sent_lsn, write_lsn, flush_lsn, replay_lsn을 모니터링하여 각 단계의 지연을 추적합니다. 지연이 커지면 문제의 원인(네트워크? 디스크? CPU?)을 파악할 수 있습니다.
+
+
 
 #### 복제 아키텍처
 ```
@@ -877,6 +925,20 @@ INSERT INTO users (email, name) VALUES ('fail@example.com', 'Fail');
 
 #### 동기 복제 (Synchronous Replication)
 
+![Fig 11.3: 복제 슬롯](../docs/images/ch11/fig-11-03.png)
+*복제 슬롯: Standby가 아직 소비하지 않은 WAL 세그먼트를 Primary가 삭제하지 못하게 하여 "WAL already removed" 오류 방지*
+
+> **🔍 그림 해설**
+>
+> 복제 슬롯은 극장에서 "자리 예약"하는 것과 같습니다. Standby가 네트워크 문제로 잠시 연결이 끊겼을 때, Primary는 계속해서 새로운 WAL을 생성합니다. 복제 슬롯이 없으면 Primary는 오래된 WAL을 자동으로 삭제하는데, Standby가 돌아왔을 때 필요한 WAL이 이미 사라져 복제가 깨집니다. 복제 슬롯은 Standby가 "나는 여기까지 읽었어"라고 표시해두고, Primary가 그 이후의 WAL을 삭제하지 못하게 막습니다. 하지만 Standby가 장시간 다운되면 WAL이 계속 쌓여 디스크가 가득 찰 수 있습니다. 그래서 max_slot_wal_keep_size로 최대 보관 크기를 제한하여, 임계값을 넘으면 오래된 WAL을 삭제하고 슬롯을 무효화합니다. 이는 안전장치로, Primary의 디스크 공간을 보호합니다.
+
+![Fig 11.4: 동기 복제](../docs/images/ch11/fig-11-04.png)
+*동기 복제: Primary는 Standby가 WAL 쓰기/플러시를 확인할 때까지 기다린 후 클라이언트에게 COMMIT 응답*
+
+> **🔍 그림 해설**
+>
+> 동기 복제는 Primary가 "신중한 은행원"처럼 행동합니다. 고객(클라이언트)이 입금(COMMIT)을 요청하면, 은행원은 먼저 본점(Standby)에 "이 거래 기록했나요?"라고 확인 받을 때까지 기다립니다. Standby가 "네, WAL을 디스크에 안전하게 기록했어요"라고 응답하면, 그제야 고객에게 "입금 완료되었습니다"라고 말합니다. 이 방식은 Primary가 갑자기 고장 나도 Standby가 정확히 같은 데이터를 가지고 있으므로, 데이터 손실이 전혀 없습니다(RPO = 0). 하지만 네트워크 왕복 시간만큼 커밋이 느려지는 단점이 있습니다. 은행 거래, 결제 시스템처럼 절대 데이터를 잃으면 안 되는 경우에 사용합니다.
+
 ```sql
 -- Primary에서 설정 변경
 ALTER SYSTEM SET synchronous_standby_names = 'walreceiver';
@@ -892,6 +954,13 @@ SELECT application_name, sync_state FROM pg_stat_replication;
 -- 성능: 약간 느림 (네트워크 왕복 시간)
 -- 데이터 안정성: RPO = 0 (데이터 손실 없음)
 ```
+
+![Fig 11.5: 비동기 복제](../docs/images/ch11/fig-11-05.png)
+*비동기 복제: Primary는 Standby 확인을 기다리지 않고 즉시 클라이언트에게 COMMIT 응답*
+
+> **🔍 그림 해설**
+>
+> 비동기 복제는 Primary가 "빠른 편의점 점원"처럼 행동합니다. 고객이 계산을 하면 즉시 영수증을 주고 "감사합니다" 하며 다음 손님을 받습니다. 그 후 백그라운드에서 본사(Standby)에 거래 내역을 전송하지만, 고객은 이미 떠난 상태입니다. 이 방식은 매우 빠르지만, Primary가 갑자기 고장 나면 Standby에 아직 전송되지 않은 마지막 몇 초의 거래가 유실될 수 있습니다. 예를 들어 Primary가 오후 3시 정각에 다운되면, 2시 59분 55초에서 3시 사이의 데이터가 Standby에 없을 수 있습니다. 하지만 성능이 중요하고 약간의 데이터 손실이 허용되는 경우(로그 수집, 분석 시스템)에는 비동기 복제가 적합합니다.
 
 ### 6. 논리적 복제 (Logical Replication)
 
@@ -993,6 +1062,8 @@ SELECT * FROM pg_stat_subscription;
  subid | subname    | pid   | relid | received_lsn | last_msg_send_time       | latest_end_lsn | last_msg_receipt_time
 -------+------------+-------+-------+--------------+--------------------------+----------------+-----------------------
  16402 | orders_sub | 12345 |       | 0/9000140    | 2026-01-31 16:00:15+09   | 0/9000140      | 2026-01-31 16:00:15+09
+
+![Fig 11.3: 복제 슬롯](../docs/images/ch11/fig-11-03.png)
 
 -- 4. 복제 슬롯 확인 (Publisher에서)
 SELECT * FROM pg_replication_slots;
