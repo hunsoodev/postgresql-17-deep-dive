@@ -36,11 +36,12 @@ PostgreSQL 17 기반 심화 학습 — 친절한 개념 설명 + Docker 실습 �
 | 11 | [파티셔닝과 대용량](notes/11-partitioning.md) | Range/List/Hash, 프루닝, COPY |
 | 12 | [보안과 접근 제어](notes/12-security.md) | Role, RLS, pg_hba.conf |
 
-### 운영 심화 (13~14)
+### 운영 심화 (13~15)
 | # | 주제 | 핵심 내용 |
 |---|------|----------|
 | 13 | [백업, 복구, 복제](notes/13-backup-replication.md) | pg_basebackup, PITR, Streaming Replication |
 | 14 | [모니터링과 성능 튜닝](notes/14-monitoring-and-tuning.md) | postgresql.conf, pgbench, 통계 뷰 |
+| 15 | [실전 모니터링](notes/15-practical-monitoring.md) | 쉘 스크립트, Discord 알림, cron 자동화 |
 
 ## 빠른 시작
 
@@ -70,7 +71,8 @@ db-learning/
 │   ├── docker-compose.yml     # 단일 PostgreSQL 17
 │   ├── docker-compose.repl.yml # Primary + Replica
 │   ├── postgresql.conf        # 커스텀 설정
-│   └── init.sql               # 이커머스 스키마 + 테스트 데이터
+│   ├── init.sql               # 이커머스 스키마 + 테스트 데이터
+│   └── monitoring/            # 모니터링 스크립트 (Discord 알림)
 ├── notes/                     # 14개 챕터 학습 노트
 ├── diagrams/                  # draw.io 다이어그램 (.drawio)
 └── benchmarks/                # EXPLAIN 벤치마크 기록

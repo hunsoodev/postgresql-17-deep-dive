@@ -48,9 +48,10 @@ PostgreSQL 17 심화 학습 프로젝트. 공식 문서 기반 + OS 파일시스
 - [ ] 11: 파티셔닝 프루닝 확인 → `benchmarks/11-partition-pruning.md` 기록
 - [ ] 12: Role + RLS 설정
 
-#### 운영 심화 (13~14)
+#### 운영 심화 (13~15)
 - [ ] 13: `docker-compose.repl.yml`로 Primary+Replica 구성, PITR 실습
 - [ ] 14: `postgresql.conf` 튜닝 → pgbench → `benchmarks/14-tuning-pgbench.md` 기록
+- [ ] 15: 모니터링 스크립트 배포 → cron 설정 → 장애 시뮬레이션 → Discord 알림 확인
 
 ### 실습 중 커밋 전략
 - 벤치마크 결과 추가: `bench: add index comparison results for chapter 06`
@@ -73,8 +74,9 @@ db-learning/
 │   ├── docker-compose.yml     # 단일 PostgreSQL 17
 │   ├── docker-compose.repl.yml # Primary + Replica
 │   ├── postgresql.conf        # 커스텀 설정
-│   └── init.sql               # 이커머스 스키마 + 테스트 데이터
-├── notes/                     # 14개 챕터 (01~14)
+│   ├── init.sql               # 이커머스 스키마 + 테스트 데이터
+│   └── monitoring/            # 모니터링 스크립트 (Discord 알림)
+├── notes/                     # 15개 챕터 (01~15)
 ├── diagrams/                  # 7개 .drawio 파일
 └── benchmarks/                # EXPLAIN 벤치마크 기록
 ```

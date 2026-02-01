@@ -15,6 +15,7 @@ services:
       - ./postgresql.conf:/etc/postgresql/postgresql.conf
       - ./init.sql:/docker-entrypoint-initdb.d/01-init.sql
       - wal-archive:/var/lib/postgresql/wal-archive
+      - pglog:/var/lib/postgresql/data/log
     command: postgres -c config_file=/etc/postgresql/postgresql.conf
     shm_size: "256m"
     deploy:
@@ -25,3 +26,4 @@ services:
 volumes:
   pgdata:
   wal-archive:
+  pglog:
