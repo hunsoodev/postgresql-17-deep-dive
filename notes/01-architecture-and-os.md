@@ -241,37 +241,186 @@ WHERE query LIKE '%pg_sleep%';
 
 ## 3. Background Workers 상세
 
-### checkpointer
+PostgreSQL을 하나의 **식당**으로 비유하면 이해가 쉽습니다. postmaster는 매니저, backend process는 각 테이블 담당 웨이터입니다. 그런데 식당이 돌아가려면 웨이터만으로는 안 됩니다. 주방 뒤에서 묵묵히 일하는 사람들이 있는데, 그것이 background workers입니다. 이들이 각자의 주기로 동작하면서 backend process가 클라이언트 쿼리 처리에만 집중할 수 있게 합니다.
 
-**역할:**
-- 주기적으로 더티 페이지(메모리에서 수정되었지만 디스크에 아직 안 쓴 페이지)를 디스크에 기록
-- WAL과 데이터 파일 동기화
+### checkpointer — "장부 정리 담당"
+
+**하는 일:** 메모리(shared_buffers)에서 수정된 데이터(더티 페이지)를 디스크에 써주는 프로세스
+
+**왜 필요한가:**
+PostgreSQL은 성능을 위해 데이터를 바로 디스크에 쓰지 않습니다. 먼저 메모리에 수정하고 나중에 한꺼번에 디스크에 씁니다. 이 "한꺼번에 디스크에 쓰는 시점"이 checkpoint입니다. checkpoint가 없으면 서버가 비정상 종료될 때 WAL로부터 복구해야 하는 양이 너무 많아집니다.
+
+> 편의점 알바가 매 거래마다 금고에 돈을 넣는 게 아니라, 일정 시간마다 계산대 돈을 모아서 금고에 넣는 것과 같습니다.
+
+**트레이드오프:**
+- checkpoint가 너무 자주 → 디스크 I/O 부하 증가
+- checkpoint가 너무 드물 → 크래시 복구 시간 증가
 
 **현재 실습 환경 설정** (`docker/postgresql.conf`):
 ```
-checkpoint_timeout = 5min
-max_wal_size = 1GB
-checkpoint_completion_target = 0.9   -- 체크포인트를 간격의 90%에 걸쳐 분산
+checkpoint_timeout = 5min          -- 이 간격마다 checkpoint 발생
+max_wal_size = 1GB                 -- WAL이 이 크기를 넘어도 checkpoint 발생
+checkpoint_completion_target = 0.9 -- 체크포인트를 간격의 90%에 걸쳐 분산
 ```
 
-### background writer (bgwriter)
+**checkpoint는 한 번에 몰아서 쓰지 않는다:**
 
-**역할:**
-- checkpointer를 돕기 위해 지속적으로 더티 페이지를 디스크에 기록
-- 체크포인트 시 부하를 줄임
+`checkpoint_completion_target = 0.9`는 다음 checkpoint까지 남은 시간의 90%, 즉 **4분 30초에 걸쳐 분산해서 쓴다**는 뜻입니다.
 
-### walwriter
+```
+0분        4분30초    5분
+|────쓰기 분산────|    |다음 checkpoint 시작
+```
 
-**역할:**
-- WAL 버퍼의 내용을 주기적으로 WAL 파일에 기록
-- 트랜잭션 커밋 시 fsync 대기 시간 단축
+만약 분산 없이 한꺼번에 쓰면 디스크 I/O가 순간 폭증해서 그 시점에 실행 중인 쿼리들이 전부 느려집니다. 이것이 "checkpoint spike" 문제입니다.
 
-### autovacuum launcher / worker
+**checkpoint가 발생하는 두 가지 조건:**
 
-**역할:**
-- 데드 튜플 정리 (VACUUM)
-- 통계 정보 갱신 (ANALYZE)
-- 트랜잭션 ID wraparound 방지
+1. **시간 기반**: `checkpoint_timeout`(5분) 경과
+2. **WAL 크기 기반**: WAL 파일 누적량이 `max_wal_size`(1GB) 초과
+
+둘 중 먼저 해당되는 조건에서 checkpoint가 시작됩니다. 쓰기가 많은 워크로드에서는 5분이 안 되어도 WAL이 1GB를 넘으면 바로 발생합니다.
+
+**"전부" 쓰는 건 맞는가?**
+
+checkpoint 시점에 더티 페이지 전부를 디스크에 씁니다. 다만 bgwriter가 평소에 일부를 미리 써둔 상태이므로 실제로 checkpoint 때 써야 할 양은 줄어들어 있고, `completion_target` 덕분에 시간에 걸쳐 분산됩니다. 그래서 checkpointer와 bgwriter가 협력하는 구조입니다 — bgwriter가 평소에 조금씩 치워두고, checkpointer가 주기적으로 나머지를 마무리합니다.
+
+### background writer (bgwriter) — "미리미리 정리하는 사람"
+
+**하는 일:** checkpointer가 한꺼번에 쓰기 전에, 조금씩 미리 더티 페이지를 디스크에 써두는 프로세스
+
+**왜 필요한가:**
+checkpoint 시점에 수천 개의 더티 페이지를 한꺼번에 쓰면 디스크 I/O가 폭증합니다 (이걸 "checkpoint spike"라 합니다). bgwriter가 평소에 조금씩 써두면 checkpoint 때 부담이 줄어듭니다.
+
+> 설거지를 한꺼번에 하면 힘드니까, 틈틈이 몇 개씩 씻어두는 것과 같습니다.
+
+**checkpointer와의 차이:**
+
+| | checkpointer | bgwriter |
+|---|---|---|
+| 언제 | 주기적 또는 WAL 초과 시 | 상시 조금씩 |
+| 목적 | 복구 지점 확보 | I/O 부하 분산 |
+| 대상 | 모든 더티 페이지 | 일부 더티 페이지 |
+
+### WAL writer — "블랙박스 기록 담당"
+
+**하는 일:** WAL(Write-Ahead Log) 버퍼의 내용을 WAL 파일(디스크)에 써주는 프로세스
+
+**WAL이란:**
+데이터를 실제로 변경하기 **전에** "이런 변경을 할 것이다"를 먼저 로그에 기록하는 것입니다. 서버가 갑자기 죽어도 이 로그를 보고 복구할 수 있습니다.
+
+> 비행기 블랙박스처럼, 무슨 일이 있었는지 항상 기록해두는 역할입니다. 사고(크래시)가 나면 이걸 보고 복원합니다.
+
+**WAL 파일은 실제로 존재하는 파일이다:**
+
+디스크의 `pg_wal/` 디렉토리에 16MB짜리 파일들로 쌓입니다.
+
+```
+$PGDATA/pg_wal/
+├── 000000010000000000000001   (16MB)
+├── 000000010000000000000002   (16MB)
+├── 000000010000000000000003   (16MB)
+└── ...
+```
+
+**UPDATE 한 줄이 실행될 때의 전체 흐름:**
+
+```
+1. UPDATE users SET name = 'kim' WHERE id = 1;
+
+2. [WAL 버퍼] (메모리)
+   "id=1의 name을 'kim'으로 바꿀 것이다" ← 먼저 여기에 기록
+
+3. [WAL 파일] (디스크 pg_wal/)
+   WAL writer가 버퍼 내용을 디스크에 씀 ← 커밋 시 반드시 여기까지 완료
+
+4. [shared_buffers] (메모리)
+   실제 데이터 페이지를 메모리에서 수정
+
+5. [데이터 파일] (디스크 base/)
+   checkpointer/bgwriter가 나중에 디스크에 씀
+```
+
+핵심은 **3번이 5번보다 먼저**라는 것입니다. 실제 데이터는 아직 디스크에 안 썼더라도, "무엇을 바꿨는지" 로그가 디스크에 먼저 기록되어 있으니 크래시가 나도 복구할 수 있습니다.
+
+**왜 데이터 파일에 바로 안 쓰고 WAL을 거치는가:**
+
+데이터 파일은 테이블마다 다른 위치에 흩어져 있어서 랜덤 I/O가 발생합니다. 반면 WAL은 하나의 파일에 순서대로 append만 하니까 **순차 I/O**라서 훨씬 빠릅니다. 그래서 커밋할 때 WAL만 디스크에 쓰고, 실제 데이터 파일은 나중에 checkpointer가 한꺼번에 씁니다. 빠른 것(WAL)으로 안전성을 확보하고, 느린 것(데이터 파일)은 나중에 몰아서 처리하는 전략입니다.
+
+**WAL 버퍼 → WAL 파일 사이에서 크래시가 나면?**
+
+WAL 파일에 쓰기 전에 크래시가 나면 그 데이터는 유실됩니다. 그리고 이것은 **의도된 동작**입니다.
+
+```
+BEGIN;
+UPDATE users SET name = 'kim' WHERE id = 1;
+COMMIT;
+```
+
+| 크래시 시점 | 상태 | 결과 |
+|---|---|---|
+| COMMIT 전 | WAL 버퍼에만 있음 | 유실됨. 하지만 클라이언트도 `COMMIT OK`를 받지 못했으므로 트랜잭션이 없었던 것과 같음 |
+| COMMIT 중 (WAL 쓰기 도중) | WAL 파일에 불완전하게 기록됨 | 복구 시 불완전한 레코드는 무시됨. 트랜잭션이 없었던 것과 같음 |
+| COMMIT 완료 후 | WAL 파일에 완전히 기록됨, 데이터 파일은 아직 안 씀 | 복구 시 WAL을 읽어서 데이터 파일에 다시 반영 (redo). 데이터 보존됨 |
+
+핵심 원칙: PostgreSQL이 클라이언트에게 `COMMIT OK`를 보내는 시점은 **WAL이 디스크에 완전히 기록된 후**입니다.
+
+- `COMMIT OK`를 받았다 → WAL 파일에 써졌다 → 복구 가능
+- `COMMIT OK`를 못 받았다 → 유실되더라도 클라이언트는 성공으로 간주하지 않음
+
+클라이언트 입장에서 "성공했다고 들었는데 데이터가 없다"는 상황은 절대 발생하지 않습니다. 이것이 WAL의 핵심 보장입니다.
+
+COMMIT 전에는 아직 롤백될 수 있는 데이터입니다. 확정되지 않은 것을 매번 디스크에 쓰는 건 낭비이므로, 메모리에만 두다가 COMMIT 시점에 한 번에 디스크로 flush합니다.
+
+**왜 별도 프로세스(WAL writer)가 필요한가:**
+
+각 backend가 커밋할 때마다 직접 WAL을 디스크에 쓰면 (fsync) 느립니다. WAL writer가 주기적으로 모아서 써주면 각 backend의 커밋 대기 시간이 줄어듭니다. "버퍼의 내용을 파일에 써준다"는 것은 메모리(WAL 버퍼)에 있는 로그를 디스크(WAL 파일)에 쓰는 것입니다. 매번 디스크에 직접 쓰면 느리니까, 먼저 메모리 버퍼에 모아뒀다가 WAL writer가 주기적으로 또는 커밋 시점에 디스크로 flush합니다.
+
+### autovacuum launcher / worker — "청소부"
+
+**하는 일:**
+1. **dead tuple 정리** — UPDATE/DELETE 하면 이전 버전의 행이 바로 삭제되지 않고 남아있음 (MVCC 때문). 이걸 정리
+2. **통계 갱신 (ANALYZE)** — planner가 좋은 실행 계획을 세우려면 "이 테이블에 행이 몇 개고, 값 분포가 어떤지" 알아야 함. 이 통계를 갱신
+3. **Transaction ID wraparound 방지** — PostgreSQL의 트랜잭션 ID는 32비트(약 42억). 다 쓰면 데이터가 "미래에서 온 것"으로 보여서 사라짐. 이를 방지
+
+**왜 이전 버전이 남아있는가 — MVCC 간략 설명:**
+
+MVCC(Multi-Version Concurrency Control)란 데이터를 수정할 때 기존 버전을 덮어쓰지 않고 새 버전을 만드는 방식입니다. 이렇게 하면 읽기와 쓰기가 서로 블로킹하지 않습니다.
+
+```
+-- UPDATE users SET name = 'kim' WHERE id = 1; (트랜잭션 200번)
+-- UPDATE는 내부적으로 DELETE + INSERT
+
+행 A: { id=1, name='park', xmin=100, xmax=200 }  ← dead tuple (이전 버전)
+행 B: { id=1, name='kim',  xmin=200, xmax=0 }    ← 새 버전 (유효)
+```
+
+- `xmin`: 이 행을 INSERT한 트랜잭션 ID
+- `xmax`: 이 행을 DELETE/UPDATE한 트랜잭션 ID (0이면 유효)
+
+이전 버전(행 A)은 바로 삭제되지 않습니다. 아직 이 행을 읽고 있는 다른 트랜잭션이 있을 수 있기 때문입니다. 아무도 더 이상 참조하지 않게 되면 autovacuum이 해당 공간을 재사용 가능하도록 정리합니다.
+
+> MVCC에 대한 상세 내용은 `notes/04-transactions-and-mvcc.md`에서 다룹니다.
+
+```sql
+-- dead tuple 수 확인
+SELECT relname, n_live_tup, n_dead_tup
+FROM pg_stat_user_tables WHERE relname = 'users';
+
+-- xmin, xmax 직접 확인
+SELECT xmin, xmax, ctid, * FROM users WHERE user_id = 1;
+```
+
+**autovacuum을 끄거나 제대로 안 돌면:**
+- 테이블 크기가 계속 커짐 (bloat)
+- 쿼리 성능이 점점 떨어짐
+- 최악의 경우 wraparound로 DB가 읽기 전용 모드로 전환됨
+
+**launcher vs worker:**
+- **launcher**: 어떤 테이블을 청소할지 판단하고 worker를 띄우는 관리자 (항상 1개)
+- **worker**: 실제로 VACUUM/ANALYZE를 수행하는 프로세스 (최대 `autovacuum_max_workers`개)
+
+> launcher는 청소 스케줄을 짜는 팀장, worker는 실제로 걸레 들고 닦는 사람입니다.
 
 **현재 실습 환경 설정** (`docker/postgresql.conf`):
 ```
@@ -280,16 +429,39 @@ autovacuum_max_workers = 3
 autovacuum_vacuum_scale_factor = 0.2
 ```
 
-### logical replication launcher
+### logical replication launcher — "복제 관리자"
 
-**역할:**
-- 논리 복제 워커 관리
-- 구독(subscription) 상태 모니터링
+**하는 일:** 논리 복제(logical replication) 구독을 관리하는 프로세스
+
+**논리 복제란:**
+테이블 단위로 "이 테이블의 변경사항을 다른 DB로 보내줘"를 설정하는 것입니다. 물리 복제(streaming replication)가 디스크 블록 단위 복사라면, 논리 복제는 "INSERT/UPDATE/DELETE를 행 단위로 전달"합니다.
+
+**언제 필요한가:**
+- 서로 다른 PostgreSQL 버전 간 복제 (메이저 버전 업그레이드 시)
+- 특정 테이블만 선택적으로 복제
+- 양방향 복제가 필요할 때
+
+복제를 안 쓰더라도 이 프로세스는 기본으로 떠 있으며, 리소스는 거의 사용하지 않습니다.
+
+### logger (logging collector) — "CCTV 담당"
+
+**하는 일:** 모든 로그 메시지를 파일로 기록
+
+`logging_collector = on`이면 뜨는 프로세스입니다. 에러, 슬로우 쿼리, 접속 기록 등을 로그 파일에 씁니다.
+
+### 면접 답변 예시
+
+> "PostgreSQL의 background worker들은 각각 명확한 역할이 있습니다. checkpointer와 bgwriter는 메모리의 변경사항을 디스크에 쓰는 역할인데, checkpointer는 주기적으로 복구 지점을 만들고, bgwriter는 그 부담을 줄이기 위해 평소에 조금씩 써둡니다. WAL writer는 트랜잭션 안전성을 보장하는 WAL 로그를 디스크에 기록하고, autovacuum은 MVCC로 인해 남는 dead tuple을 정리하면서 통계도 갱신합니다. 이런 프로세스들이 각자의 주기로 동작하면서 backend process가 클라이언트 쿼리 처리에만 집중할 수 있게 해줍니다."
 
 ### ✅ 직접 확인: 백그라운드 워커 모니터링
 
 ```sql
--- checkpointer 통계 (PostgreSQL 17)
+-- checkpointer 통계
+-- ⚠️ PostgreSQL 17 변경사항:
+--   pg_stat_checkpointer는 17에서 신규 추가된 뷰입니다.
+--   16 이하에서는 이 정보가 pg_stat_bgwriter에 포함되어 있었습니다.
+--   (num_timed, num_requested, write_time, sync_time, buffers_written 등이
+--    pg_stat_bgwriter에서 pg_stat_checkpointer로 분리됨)
 SELECT
     num_timed AS timed_checkpoints,
     num_requested AS requested_checkpoints,
@@ -299,6 +471,9 @@ SELECT
 FROM pg_stat_checkpointer;
 
 -- bgwriter 통계
+-- ⚠️ PostgreSQL 17 변경사항:
+--   17부터 checkpoint 관련 컬럼이 제거되고 bgwriter 고유 통계만 남았습니다.
+--   16 이하: checkpoints_timed, checkpoints_req 등이 여기에 있었음
 SELECT
     buffers_clean,
     buffers_alloc
@@ -334,6 +509,53 @@ DROP TABLE vacuum_test;
 > **🔍 그림 해설**
 >
 > 이 그림은 PostgreSQL이 메모리를 어떻게 나누어 사용하는지 보여줍니다. 사무실 건물을 떠올려 보세요. 각 직원(backend process)은 자신만의 책상(local memory)을 가지고 있습니다. work_mem은 정렬이나 계산을 할 때 사용하는 개인 메모장이고, temp_buffers는 임시로 뭔가를 적어두는 포스트잇 같은 것입니다. 하지만 회사 전체가 함께 사용하는 공간도 있습니다. shared_buffers는 모든 직원이 함께 보는 공용 서류 캐비닛입니다. 여기에는 자주 참조하는 데이터 페이지들이 저장되어 있어서, 매번 디스크에서 읽어오지 않아도 됩니다. WAL buffer는 모든 변경사항을 기록하는 공용 메모장이고, commit log(CLOG)는 어떤 트랜잭션이 완료되었는지 기록하는 공용 체크리스트입니다.
+
+### 세그먼트와 페이지 — 용어 정리
+
+**가상 메모리 페이지:**
+
+OS는 물리 메모리(RAM)를 일정한 크기의 조각으로 나눠서 관리합니다. 이 조각 하나가 **페이지**이고, Linux에서는 기본 **4KB**입니다. 프로세스마다 메모리 전체를 통째로 할당하면 낭비가 심하므로, 4KB 단위로 잘라서 필요한 만큼만 할당하고 안 쓰는 부분은 디스크로 내보낼 수(swap) 있습니다.
+
+```
+물리 메모리 (RAM 16GB)
+┌──────┬──────┬──────┬──────┬─── ...
+│ 4KB  │ 4KB  │ 4KB  │ 4KB  │
+│페이지│페이지│페이지│페이지│
+└──────┴──────┴──────┴──────┴─── ...
+```
+
+**공유 메모리 세그먼트:**
+
+세그먼트는 **여러 프로세스가 함께 접근할 수 있는 연속된 메모리 영역**입니다. 일반적으로 각 프로세스는 자기만의 메모리 공간을 가지고 있어서 다른 프로세스의 메모리를 볼 수 없습니다. 하지만 PostgreSQL은 backend 프로세스들이 shared_buffers 같은 데이터를 공유해야 하므로, OS에 "이 메모리 영역은 여러 프로세스가 함께 쓸 수 있게 해줘"라고 요청해서 만드는 것이 공유 메모리 세그먼트입니다.
+
+```
+프로세스 A (backend)     프로세스 B (backend)     프로세스 C (bgwriter)
+┌─────────────┐         ┌─────────────┐         ┌─────────────┐
+│ 개인 메모리  │         │ 개인 메모리  │         │ 개인 메모리  │
+│ (work_mem)  │         │ (work_mem)  │         │  (work_mem) │
+└──────┬──────┘         └──────┬──────┘         └──────┬──────┘
+       │                       │                       │
+       └───────────┬───────────┴───────────────────────┘
+                   │
+                   ▼
+    ┌──────────────────────────────┐
+    │   공유 메모리 세그먼트         │
+    │                              │
+    │  shared_buffers (128MB)      │  ← 모든 프로세스가 같은 영역을 봄
+    │  WAL buffers                 │
+    │  CLOG buffers                │
+    │  Lock tables                 │
+    └──────────────────────────────┘
+```
+
+**"페이지"라는 단어가 두 가지 의미로 쓰인다:**
+
+| 용어 | 맥락 | 크기 | 의미 |
+|---|---|---|---|
+| 페이지 (page) | OS 가상 메모리 | 4KB (Linux 기본) | 메모리 관리 최소 단위 |
+| 페이지/블록 (page/block) | PostgreSQL 데이터 | 8KB (기본) | 테이블/인덱스 데이터 저장 단위 |
+
+이 공유 메모리 섹션에서 `shmall`의 페이지는 OS 페이지(4KB)를 말하고, `shared_buffers`나 `EXPLAIN BUFFERS`에서 말하는 페이지는 PostgreSQL 블록(8KB)입니다.
 
 ### shared_buffers가 올라가는 구조
 
@@ -453,12 +675,145 @@ FROM pg_statio_user_tables;
 
 ### 세마포어 (Semaphores)
 
-PostgreSQL은 프로세스 간 동기화를 위해 세마포어를 사용합니다.
+**세마포어란:** 카운터 기반의 동기화 도구입니다. "지금 이 자원을 몇 개까지 동시에 쓸 수 있는가"를 숫자로 관리합니다.
 
-**용도:**
-- 공유 버퍼 락
-- LWLock (Lightweight Lock)
-- 트랜잭션 로깅
+```
+세마포어 값 = 3 (동시에 3개 프로세스 허용)
+
+프로세스 A: wait() → 값 2로 감소 → 진입
+프로세스 B: wait() → 값 1로 감소 → 진입
+프로세스 C: wait() → 값 0으로 감소 → 진입
+프로세스 D: wait() → 값 0이라 대기... 블로킹
+
+프로세스 A: signal() → 값 1로 증가
+프로세스 D: → 값 0으로 감소 → 진입 가능
+```
+
+**왜 뮤텍스가 아닌 세마포어인가:**
+
+| | 뮤텍스 (Mutex) | 세마포어 (Semaphore) |
+|---|---|---|
+| 기본 범위 | **같은 프로세스 내** 스레드 간 동기화 | **서로 다른 프로세스** 간 동기화 가능 |
+| 소유권 | 잠근 스레드만 풀 수 있음 | 누구나 signal 가능 |
+| 카운터 | 1 (잠김/풀림) | N개 (동시에 N개 허용 가능) |
+
+PostgreSQL은 멀티프로세스 아키텍처이므로 프로세스 경계를 넘을 수 있는 세마포어가 필요합니다. 뮤텍스는 기본적으로 같은 프로세스 안의 스레드 간에서만 동작합니다.
+
+**PostgreSQL에서 필요한 세마포어 수:**
+
+프로세스(연결)당 세마포어 1개를 할당합니다:
+
+```
+필요한 세마포어 수 = max_connections           (100)
+                   + autovacuum_max_workers    (3)
+                   + max_wal_senders           (10, 기본값)
+                   + max_worker_processes      (8, 기본값)
+                   + 7 (내부 프로세스용)
+                   = 128개
+```
+
+이 세마포어들은 19개씩 세트로 묶여서 관리됩니다 (20번째는 매직넘버 검증용):
+
+```
+세마포어 세트 1: [sem0, sem1, ..., sem18, magic]  ← 19개 + 검증용 1개
+세마포어 세트 2: [sem0, sem1, ..., sem18, magic]
+...
+필요한 세트 수 = ceil(128 / 19) = 7세트
+```
+
+**플랫폼별 차이 (공식 문서):**
+- **Linux**: POSIX 세마포어 사용 → 커널 파라미터 제한 없음, 별도 설정 불필요
+- **macOS, 이전 FreeBSD 등**: System V 세마포어 사용 → `SEMMNI`, `SEMMNS` 커널 파라미터 조정 필요
+
+**세마포어의 역할 — 프로세스를 재우고 깨우는 메커니즘:**
+
+세마포어 자체가 직접 데이터를 보호하는 게 아니라, 프로세스를 sleep/wake 시키는 기반입니다. PostgreSQL은 그 위에 여러 계층의 락을 구축합니다.
+
+### 락(Lock) 계층 구조
+
+PostgreSQL은 세마포어 위에 4단계 락 계층을 두고 있습니다. 아래로 갈수록 가볍고 짧게 잡고, 위로 갈수록 무겁고 오래 잡습니다.
+
+**1단계: SpinLock — "문 앞에서 제자리 뛰기"**
+
+가장 가벼운 락입니다. 락을 못 잡으면 sleep하지 않고 CPU에서 계속 루프를 돌면서(busy-wait) 기다립니다.
+
+```
+프로세스 A: 락 잡음 → 아주 짧은 작업 (변수 하나 수정) → 락 해제
+프로세스 B: 못 잡음 → while(잠김) { 계속 확인... } → 잡음!
+```
+
+- 용도: 공유 변수 하나를 원자적으로 수정할 때 (몇 마이크로초)
+- 특징: 대기 중에도 CPU를 놓지 않음. 오래 잡으면 CPU 낭비
+- 비유: 화장실 문 앞에서 "아직인가? 아직인가?" 계속 노크하는 것
+
+**2단계: LWLock (Lightweight Lock) — "shared_buffers 내부 교통정리"**
+
+shared_buffers 안의 개별 버퍼 페이지 접근을 동기화합니다. SpinLock보다 오래 잡을 수 있고, 못 잡으면 sleep합니다.
+
+```
+프로세스 A: LWLock(Shared) 잡음 → 버퍼 페이지 읽기
+프로세스 B: LWLock(Shared) 잡음 → 같은 페이지 읽기 (동시에 가능!)
+프로세스 C: LWLock(Exclusive) 요청 → A, B가 끝날 때까지 sleep
+```
+
+- 용도: 버퍼 페이지 읽기/쓰기, WAL 버퍼 접근, 카탈로그 캐시 등
+- 특징: **Shared 모드(읽기)는 여러 프로세스가 동시에 잡을 수 있고, Exclusive 모드(쓰기)는 혼자만 가능**
+- 비유: 도서관 열람실. 읽기는 여러 명이 동시에 가능하지만, 책 내용을 수정하려면 혼자 독점해야 함
+
+**3단계: 행 락 (Row Lock) — "이 행은 내가 수정 중"**
+
+특정 행(tuple)에 대한 동시 수정을 방지합니다. SQL의 `FOR UPDATE`, `FOR SHARE`로 명시적으로 잡거나, UPDATE/DELETE 시 자동으로 잡힙니다.
+
+```sql
+-- 세션 A
+BEGIN;
+SELECT * FROM users WHERE user_id = 1 FOR UPDATE;  -- user_id=1 행에 락
+-- 아직 커밋 안 함
+
+-- 세션 B
+UPDATE users SET username = 'test' WHERE user_id = 1;  -- 대기... (A가 끝날 때까지)
+UPDATE users SET username = 'test' WHERE user_id = 2;  -- 즉시 실행 (다른 행)
+```
+
+- 용도: UPDATE, DELETE, SELECT FOR UPDATE
+- 특징: **행 단위이므로 다른 행은 영향 없음**. 테이블 전체를 잠그지 않음
+- 비유: 엑셀 공유 문서에서 특정 셀을 편집 중이면 그 셀만 잠기고, 다른 셀은 자유롭게 편집 가능
+
+**4단계: 테이블 락 (Table Lock) — "이 테이블에 대한 접근 규칙"**
+
+테이블 전체에 대한 동시 접근을 조율합니다. 8가지 모드가 있으며, 일반 쿼리에서는 가장 약한 락이 자동으로 걸립니다.
+
+| 상황 | 걸리는 락 | 허용 | 블로킹 |
+|---|---|---|---|
+| `SELECT` | AccessShareLock | 다른 SELECT, UPDATE 모두 허용 | `DROP TABLE`만 막음 |
+| `UPDATE` | RowExclusiveLock | 다른 SELECT 허용 | `ALTER TABLE`, `DROP TABLE` 막음 |
+| `ALTER TABLE` | AccessExclusiveLock | **모든 접근 차단** | SELECT까지 막음 |
+
+- 핵심: 일반적인 SELECT와 UPDATE는 서로 블로킹하지 않음 (MVCC 덕분)
+- 위험한 순간: `ALTER TABLE`이나 `DROP TABLE`은 모든 접근을 막으므로 프로덕션에서 주의
+
+**전체 그림 — 락들이 협력하는 구조:**
+
+```
+SELECT * FROM users WHERE user_id = 1;
+
+1. [테이블 락]  AccessShareLock on users      ← DROP TABLE 방지
+2. [LWLock]    shared_buffers에서 해당 페이지 찾기 (Shared 모드)
+3. [SpinLock]  버퍼 디스크립터 상태 확인 (마이크로초)
+4. 데이터 반환
+
+UPDATE users SET name = 'kim' WHERE user_id = 1;
+
+1. [테이블 락]  RowExclusiveLock on users     ← ALTER TABLE 방지
+2. [행 락]     user_id=1 행에 exclusive lock  ← 다른 UPDATE 방지
+3. [LWLock]    버퍼 페이지 수정 (Exclusive 모드)
+4. [SpinLock]  WAL 버퍼 포인터 갱신 (마이크로초)
+5. WAL 기록 → 완료
+```
+
+**면접 답변 예시:**
+
+> "PostgreSQL의 락은 4단계 계층으로 되어 있습니다. 가장 아래에는 SpinLock이 있어서 공유 변수 수정 같은 마이크로초 단위 작업을 busy-wait으로 동기화합니다. 그 위에 LWLock이 있어서 shared_buffers 내부의 버퍼 페이지 접근을 Shared/Exclusive 모드로 제어합니다. 행 락은 특정 행의 동시 수정을 방지하되 다른 행에는 영향을 주지 않고, 테이블 락은 DDL과 DML 간의 충돌을 조율합니다. 일반적인 SELECT와 UPDATE는 서로 블로킹하지 않는데, 이는 MVCC 덕분입니다. 이 모든 락의 기반에는 OS 세마포어가 있어서 프로세스를 sleep/wake 시키는 역할을 합니다."
 
 ### 시그널 (Signals)
 
