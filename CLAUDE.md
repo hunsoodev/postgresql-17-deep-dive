@@ -30,6 +30,15 @@ PostgreSQL 17 심화 학습 프로젝트. 공식 문서 기반 + OS 파일시스
   - 개념 설명 직후 `✅ 직접 확인:` 블록으로 실습 배치
   - 설정값을 실제 환경(pg17-lab, labuser, ecommerce)과 일치시킴
   - 기존 "실습 SQL" / "직접 확인해보기" 별도 섹션 → 해당 이론 직후로 이동
+- [x] `notes/01-architecture-and-os.md` — 심화 개념 설명 추가 (+385줄)
+  - background workers 각 역할을 비유와 면접 답변 예시로 재작성
+  - checkpoint 분산 쓰기(completion_target), 발생 조건(시간/WAL 크기) 상세
+  - WAL 전체 흐름 (버퍼→파일→데이터), 크래시 시점별 시나리오 테이블
+  - MVCC 간략 설명 (xmin/xmax, dead tuple이 남는 이유)
+  - 공유 메모리 세그먼트/페이지 용어 정리, OS 페이지(4KB) vs PG 블록(8KB) 구분
+  - 세마포어 이론 및 뮤텍스와의 차이, PG 세마포어 수 계산식
+  - 락 계층 4단계 (SpinLock→LWLock→행 락→테이블 락) 비유와 SQL 예시
+  - pg_stat_checkpointer (v17 신규) / pg_stat_bgwriter (v17 변경) 주석
 - [x] `docker/postgresql.conf` — 전체 파라미터 상세 주석 추가
   - ~30개 설정 항목마다: 동작 원리, 이 값인 이유, 잘못 설정 시 영향, 프로덕션 권장값
   - 파일 상단에 설정 우선순위(8단계), 유용한 조회 쿼리, 전체 레퍼런스 링크 추가
