@@ -598,7 +598,64 @@ $ sudo systemctl reload postgresql
 >
 > WAL 아카이빙은 데이터베이스의 "자동 백업 시스템"입니다. PostgreSQL은 모든 변경을 WAL 파일에 기록하는데, 각 WAL 세그먼트는 16MB 크기입니다. 한 세그먼트가 가득 차면, archive_command가 자동으로 실행되어 그 파일을 안전한 별도 위치(아카이브 디렉토리, S3, 네트워크 스토리지 등)로 복사합니다. 이 과정은 마치 자동으로 중요 문서를 금고에 보관하는 것과 같습니다. pg_wal/ 디렉토리의 WAL 파일은 일정 시간이 지나면 재사용되거나 삭제될 수 있지만, 아카이브에 복사된 파일은 안전하게 보존됩니다. 이 아카이브가 있어야 PITR이 가능하며, 베이스 백업 시점 이후의 모든 변경을 재생할 수 있습니다.
 
-#### 아카이브 디렉토리 준비
+#### 프로덕션 WAL 아카이빙 전략
+
+로컬 `cp`는 실습용입니다. 같은 디스크가 고장나면 데이터와 아카이브가 동시에 유실됩니다. 프로덕션에서는 반드시 원격 스토리지로 보내야 합니다.
+
+**방법 1: S3/R2로 직접 전송 (단순하지만 한계 있음)**
+
+```bash
+# AWS S3
+archive_command = 'aws s3 cp %p s3://my-backup-bucket/wal/%f'
+
+# Cloudflare R2 (S3 호환 API, egress 비용 없음 → 복구 시 유리)
+archive_command = 'aws s3 cp %p s3://my-r2-bucket/wal/%f --endpoint-url https://ACCOUNT.r2.cloudflarestorage.com'
+```
+
+한계: 네트워크 실패 시 재시도 로직 없음, 압축/암호화를 직접 처리해야 함
+
+**방법 2: pgBackRest 사용 (프로덕션 권장)**
+
+```bash
+archive_command = 'pgbackrest --stanza=main archive-push %p'
+```
+
+pgBackRest가 처리하는 것들:
+- **압축** (zstd/lz4) → WAL 16MB → 수백KB로 줄어듦
+- **암호화** → 저장 시 AES-256
+- **병렬 전송** → 여러 WAL을 동시에 전송
+- **재시도** → 네트워크 실패 시 자동 재시도
+- **S3/R2/GCS/Azure 모두 지원**
+
+**방법 3: barman**
+
+```bash
+archive_command = 'barman-wal-archive backup-server main %p'
+```
+
+**복구 시 흐름 (S3 예시):**
+
+```
+서버 유실
+  → 새 서버에 pg_basebackup 복원 (풀 백업)
+  → restore_command = 'aws s3 cp s3://my-bucket/wal/%f %p'
+  → recovery_target_time = '2026-02-21 14:29:59'
+  → PostgreSQL이 S3에서 WAL을 하나씩 가져와 재생
+  → 지정 시점까지 복원 완료
+```
+
+**비교:**
+
+| 방식 | 안전성 | 비용 | 복잡도 |
+|------|--------|------|--------|
+| 같은 디스크 (`cp`) | 낮음 | 무료 | 없음 (실습용) |
+| S3/R2 직접 전송 | 높음 | 저렴 | 중간 (프로덕션 최소) |
+| pgBackRest + S3 | 매우 높음 | 저렴 | 중간 (프로덕션 권장) |
+
+> WAL 파일은 압축하면 매우 작아지므로 (16MB → 수백KB), 오브젝트 스토리지 비용은 거의 무시할 수 있는 수준입니다.
+> R2는 egress 비용이 없어서 복구 시 대량 다운로드에도 추가 비용이 발생하지 않습니다.
+
+#### 아카이브 디렉토리 준비 (로컬 실습용)
 ```bash
 # 아카이브 디렉토리 생성
 $ sudo mkdir -p /archive/wal

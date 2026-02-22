@@ -15,7 +15,8 @@ services:
       - ./postgresql.conf:/etc/postgresql/postgresql.conf
       - ./init.sql:/docker-entrypoint-initdb.d/01-init.sql
       - wal-archive:/var/lib/postgresql/wal-archive
-      - pglog:/var/lib/postgresql/data/log
+      # pglog 볼륨 제거: log_directory = 'log'은 PGDATA 하위 상대경로이므로
+      # pgdata 볼륨 안에 자동 생성됨
     command: postgres -c config_file=/etc/postgresql/postgresql.conf
     shm_size: "256m"
     deploy:
@@ -26,4 +27,3 @@ services:
 volumes:
   pgdata:
   wal-archive:
-  pglog:
