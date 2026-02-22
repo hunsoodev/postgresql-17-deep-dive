@@ -39,6 +39,34 @@ PostgreSQL 17 심화 학습 프로젝트. 공식 문서 기반 + OS 파일시스
   - 세마포어 이론 및 뮤텍스와의 차이, PG 세마포어 수 계산식
   - 락 계층 4단계 (SpinLock→LWLock→행 락→테이블 락) 비유와 SQL 예시
   - pg_stat_checkpointer (v17 신규) / pg_stat_bgwriter (v17 변경) 주석
+- [x] `notes/01-architecture-and-os.md` — 프로덕션 심화 + 락 실전 시나리오 대폭 추가 (+2800줄)
+  - bgwriter 파라미터 (bgwriter_delay/lru_maxpages/lru_multiplier), pg_stat_io 모니터링
+  - WAL writer 파라미터, write vs fsync, synchronous_commit 관계
+  - 백그라운드 워커 모니터링 컬럼별 상세 (pg_stat_checkpointer/bgwriter/wal)
+  - work_mem per-operation 설명, 곱셈 위험, SET LOCAL 패턴
+  - shared_buffers: 캐시 히트/미스, Clock Sweep, pg_buffercache 6개 쿼리
+  - pg_statio_user_tables 8개 컬럼 상세, 패턴별 판단 테이블
+  - Transaction ID wraparound: 메커니즘, freezing, 모니터링 5개 쿼리, 긴급 복구
+  - 락 4단계 현업 시나리오 (각 단계별 진단→해결→예방 단계 포함):
+    - SpinLock: CPU 코어 수 관계 (busy-wait 역전 현상), PgBouncer 도입 단계
+    - LWLock: WALInsertLock/BufferMapping/buffer_content 경합 진단 및 해결
+    - 행 락: 재고 차감, 결제 이중 처리(3가지 방법), 작업 큐(SKIP LOCKED 완전 패턴), 좌석 예매
+    - 테이블 락: 마이그레이션 사고 대응, CREATE INDEX CONCURRENTLY, VACUUM FULL→pg_repack, idle in transaction
+  - 테이블 락 8가지 모드 상세 (각 모드별 SQL/충돌/예시/이유)
+  - 8×8 충돌 매트릭스, DML끼리 충돌하지 않는 이유 (2단계 락 설계)
+  - MVCC로 SELECT-UPDATE 비블로킹 설명 (xmin/xmax 버전 관리, MySQL InnoDB 비교)
+  - FOR UPDATE 3가지 변형 비교 (기본/NOWAIT/SKIP LOCKED)
+  - pg_locks 행 락 진단 쿼리 절별 컬럼 상세 해설
+  - ALTER TABLE별 필요 락 모드 구분 (AccessExclusive vs 그 외)
+- [x] `notes/13-backup-replication.md` — 프로덕션 WAL 아카이빙 전략 추가
+  - S3/R2 직접 아카이빙, pgBackRest (권장), barman
+  - 복구 흐름, 도구 비교 테이블
+- [x] `notes/17-pgvector-index-tuning.md` — pgvector 인덱스 튜닝 가이드 신규 생성
+  - HNSW vs IVFFlat 비교, 파라미터 튜닝 (m, ef_construction, lists, probes)
+  - 빌드 최적화, 필터링 전략, 저장 최적화 (halfvec, binary quantization)
+  - PG17 특화 기능
+- [x] `notes/12-1-permission-management.md` — 권한 관리 노트 추가
+- [x] `notes/16-data-engineering-sql.md` — 데이터 엔지니어링 SQL 노트 추가
 - [x] `docker/postgresql.conf` — 전체 파라미터 상세 주석 추가
   - ~30개 설정 항목마다: 동작 원리, 이 값인 이유, 잘못 설정 시 영향, 프로덕션 권장값
   - 파일 상단에 설정 우선순위(8단계), 유용한 조회 쿼리, 전체 레퍼런스 링크 추가
@@ -96,7 +124,7 @@ db-learning/
 │   ├── postgresql.conf        # 커스텀 설정
 │   ├── init.sql               # 이커머스 스키마 + 테스트 데이터
 │   └── monitoring/            # 모니터링 스크립트 (Discord 알림)
-├── notes/                     # 15개 챕터 (01~15)
+├── notes/                     # 17개 챕터 (01~17, 12-1 포함)
 ├── diagrams/                  # 7개 .drawio 파일
 └── benchmarks/                # EXPLAIN 벤치마크 기록
 ```
